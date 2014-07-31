@@ -7,9 +7,10 @@ endif
 
 EXTRA_DIST	= example-cfg.json nomacro.pl
 
-SUBDIRS		= compat
+SUBDIRS		= compat m7
 
 INCLUDES	= $(PTHREAD_FLAGS) -fno-strict-aliasing $(JANSSON_INCLUDES)
+INCLUDES   += -I$(top_srcdir)/m7
 
 bin_PROGRAMS	= minerd
 
@@ -30,6 +31,6 @@ minerd_SOURCES += sha2-arm.S scrypt-arm.S
 endif
 endif
 minerd_LDFLAGS	= $(PTHREAD_FLAGS)
-minerd_LDADD	= @LIBCURL@ @JANSSON_LIBS@ @PTHREAD_LIBS@ @WS2_LIBS@
+minerd_LDADD	= @LIBCURL@ @JANSSON_LIBS@ @PTHREAD_LIBS@ @WS2_LIBS@ @M7_LIBS@
 minerd_CPPFLAGS = @LIBCURL_CPPFLAGS@
 

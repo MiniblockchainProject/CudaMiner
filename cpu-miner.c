@@ -37,6 +37,7 @@
 #include <curl/curl.h>
 #include "compat.h"
 #include "miner.h"
+#include <m7hash.h>
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
@@ -103,11 +104,13 @@ struct workio_cmd {
 enum algos {
 	ALGO_SCRYPT,		/* scrypt(1024,1,1) */
 	ALGO_SHA256D,		/* SHA-256d */
+	ALGO_M7,			/* M7: SHA-256(SHA-256(h)*SHA-512(h)*Keccak(h)*Ripemd(h)*Haval(h)*Tiger(h)*Whirlpool(h)) */
 };
 
 static const char *algo_names[] = {
 	[ALGO_SCRYPT]		= "scrypt",
 	[ALGO_SHA256D]		= "sha256d",
+	[ALGO_M7]			= "m7",
 };
 
 bool opt_debug = false;
@@ -128,7 +131,7 @@ static int opt_fail_pause = 30;
 int opt_timeout = 0;
 static int opt_scantime = 5;
 static const bool opt_time = true;
-static enum algos opt_algo = ALGO_SCRYPT;
+static enum algos opt_algo = ALGO_M7;
 static int opt_scrypt_n = 1024;
 static int opt_n_threads;
 static int num_processors;
@@ -170,9 +173,10 @@ static char const usage[] = "\
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
   -a, --algo=ALGO       specify the algorithm to use\n\
-                          scrypt    scrypt(1024, 1, 1) (default)\n\
+                          scrypt    scrypt(1024, 1, 1)\n\
                           scrypt:N  scrypt(N, 1, 1)\n\
                           sha256d   SHA-256d\n\
+                          m7        M7 PoW (default)\n\
   -o, --url=URL         URL of mining server\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
   -u, --user=USERNAME   username for mining server\n\
@@ -323,8 +327,9 @@ static bool jobj_binary(const json_t *obj, const char *key,
 static bool work_decode(const json_t *val, struct work *work)
 {
 	int i;
+	size_t work_size = opt_algo == ALGO_M7 ? 122 : 128;
 
-	if (unlikely(!jobj_binary(val, "data", work->data, sizeof(work->data)))) {
+	if (unlikely(!jobj_binary(val, "data", work->data, work_size))) {
 		applog(LOG_ERR, "JSON invalid data");
 		goto err_out;
 	}
@@ -333,10 +338,12 @@ static bool work_decode(const json_t *val, struct work *work)
 		goto err_out;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(work->data); i++)
-		work->data[i] = le32dec(work->data + i);
-	for (i = 0; i < ARRAY_SIZE(work->target); i++)
-		work->target[i] = le32dec(work->target + i);
+	if (opt_algo != ALGO_M7) {
+		for (i = 0; i < 32; i++)
+			work->data[i] = le32dec(work->data + i);
+		for (i = 0; i < ARRAY_SIZE(work->target); i++)
+			work->target[i] = le32dec(work->target + i);
+	}
 
 	return true;
 
@@ -677,7 +684,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 	} else if (work->txs) {
 		char *req;
 
-		for (i = 0; i < ARRAY_SIZE(work->data); i++)
+		for (i = 0; i < 32; i++)
 			be32enc(work->data + i, work->data[i]);
 		bin2hex(data_str, (unsigned char *)work->data, 80);
 		if (work->workid) {
@@ -725,9 +732,15 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 		json_decref(val);
 	} else {
 		/* build hex string */
-		for (i = 0; i < ARRAY_SIZE(work->data); i++)
-			le32enc(work->data + i, work->data[i]);
-		bin2hex(data_str, (unsigned char *)work->data, sizeof(work->data));
+		if (opt_algo != ALGO_M7) {
+			for (i = 0; i < 32; i++)
+				le32enc(work->data + i, work->data[i]);
+		}
+		if (opt_algo == ALGO_M7) {
+			bin2hex(data_str, (unsigned char *)work->data, 122);
+		} else {
+			bin2hex(data_str, (unsigned char *)work->data, 128);
+		}
 
 		/* build JSON-RPC request */
 		sprintf(s,
@@ -1054,6 +1067,50 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 		diff_to_target(work->target, sctx->job.diff);
 }
 
+static bool fulltest_m7hash(const uint32_t *hash32, const uint32_t *target32)
+{
+	int i;
+	bool rc = true;
+
+	const unsigned char *hash = (const unsigned char *)hash32;
+	const unsigned char *target = (const unsigned char *)target32;
+	for (i = 31; i >= 0; i--) {
+		if (hash[i] != target[i]) {
+			rc = hash[i] < target[i];
+			break;
+		}
+	}
+
+	return rc;
+}
+
+static int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+	uint64_t max_nonce, unsigned long *hashes_done)
+{
+	uint32_t data[32] __attribute__((aligned(128)));
+	uint32_t hash[8] __attribute__((aligned(32)));
+	uint32_t n = pdata[29] - 1;
+	const uint32_t first_nonce = pdata[29];
+	
+	memcpy(data, pdata, 122);
+
+	do {
+		data[29] = ++n;
+		m7hash((const char *)hash, (const unsigned char *)data, 122);
+		int rc = fulltest_m7hash(hash, ptarget);
+		if (rc) {
+			pdata[29] = data[29];
+			*hashes_done = n - first_nonce + 1;
+			return 1;
+		}
+	} while (n < max_nonce && !work_restart[thr_id].restart);
+
+	*hashes_done = n - first_nonce + 1;
+	pdata[29] = n;
+
+	return 0;
+}
+
 static void *miner_thread(void *userdata)
 {
 	struct thr_info *mythr = userdata;
@@ -1101,15 +1158,26 @@ static void *miner_thread(void *userdata)
 			while (time(NULL) >= g_work_time + 120)
 				sleep(1);
 			pthread_mutex_lock(&g_work_lock);
-			if (work.data[19] >= end_nonce && !memcmp(work.data, g_work.data, 76))
-				stratum_gen_work(&stratum, &g_work);
+			if (opt_algo == ALGO_M7) {
+				if (work.data[29] >= end_nonce && !memcmp(work.data, g_work.data, 116))
+					stratum_gen_work(&stratum, &g_work);
+			} else {
+				if (work.data[19] >= end_nonce && !memcmp(work.data, g_work.data, 76))
+					stratum_gen_work(&stratum, &g_work);
+			}
 		} else {
 			int min_scantime = have_longpoll ? LP_SCANTIME : opt_scantime;
 			/* obtain new work from internal workio thread */
 			pthread_mutex_lock(&g_work_lock);
+			bool nonce_over;
+			if (opt_algo == ALGO_M7) {
+				nonce_over = work.data[29] >= end_nonce;
+			} else {
+				nonce_over = work.data[19] >= end_nonce;
+			}
 			if (!have_stratum &&
 			    (time(NULL) - g_work_time >= min_scantime ||
-			     work.data[19] >= end_nonce)) {
+			     nonce_over)) {
 				if (unlikely(!get_work(mythr, &g_work))) {
 					applog(LOG_ERR, "work retrieval failed, exiting "
 						"mining thread %d", mythr->id);
@@ -1123,12 +1191,21 @@ static void *miner_thread(void *userdata)
 				continue;
 			}
 		}
-		if (memcmp(work.data, g_work.data, 76)) {
-			work_free(&work);
-			work_copy(&work, &g_work);
-			work.data[19] = 0xffffffffU / opt_n_threads * thr_id;
-		} else
-			work.data[19]++;
+		if (opt_algo == ALGO_M7) {
+			if (memcmp(work.data, g_work.data, 116)) {
+				work_free(&work);
+				work_copy(&work, &g_work);
+				work.data[29] = 0xffffffffU / opt_n_threads * thr_id;
+			} else
+				work.data[29]++; // todo
+		} else {
+			if (memcmp(work.data, g_work.data, 76)) {
+				work_free(&work);
+				work_copy(&work, &g_work);
+				work.data[19] = 0xffffffffU / opt_n_threads * thr_id;
+			} else
+				work.data[19]++;
+		}
 		pthread_mutex_unlock(&g_work_lock);
 		work_restart[thr_id].restart = 0;
 		
@@ -1147,12 +1224,22 @@ static void *miner_thread(void *userdata)
 			case ALGO_SHA256D:
 				max64 = 0x1fffff;
 				break;
+			case ALGO_M7:
+				max64 = 0x3ffff;
+				break;
 			}
 		}
-		if (work.data[19] + max64 > end_nonce)
-			max_nonce = end_nonce;
-		else
-			max_nonce = work.data[19] + max64;
+		if (opt_algo == ALGO_M7) {
+			if (work.data[29] + max64 > end_nonce)
+				max_nonce = end_nonce;
+			else
+				max_nonce = work.data[29] + max64;
+		} else {
+			if (work.data[19] + max64 > end_nonce)
+				max_nonce = end_nonce;
+			else
+				max_nonce = work.data[19] + max64;
+		}
 		
 		hashes_done = 0;
 		gettimeofday(&tv_start, NULL);
@@ -1166,6 +1253,11 @@ static void *miner_thread(void *userdata)
 
 		case ALGO_SHA256D:
 			rc = scanhash_sha256d(thr_id, work.data, work.target,
+			                      max_nonce, &hashes_done);
+			break;
+
+		case ALGO_M7:
+			rc = scanhash_m7hash(thr_id, work.data, work.target,
 			                      max_nonce, &hashes_done);
 			break;
 
@@ -1808,6 +1900,10 @@ int main(int argc, char *argv[])
 		if (!rpc_userpass)
 			return 1;
 		sprintf(rpc_userpass, "%s:%s", rpc_user, rpc_pass);
+	}
+
+	if (opt_algo == ALGO_M7) {
+		have_gbt = false;
 	}
 
 	pthread_mutex_init(&applog_lock, NULL);

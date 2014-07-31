@@ -15,6 +15,7 @@ AC_PROG_GCC_TRADITIONAL
 AM_PROG_CC_C_O
 AM_PROG_AS
 AC_PROG_RANLIB
+AC_PROG_CXX
 
 dnl Checks for header files
 AC_HEADER_STDC
@@ -102,6 +103,10 @@ AC_CHECK_LIB([pthread], [pthread_create], PTHREAD_LIBS="-lpthread",
       AC_CHECK_LIB([pthreadGC], [pthread_create], PTHREAD_LIBS="-lpthreadGC"
 ))))
 
+AC_CHECK_LIB(gmp, __gmpz_init, ,
+  [AC_MSG_ERROR([GNU MP not found, see https://gmplib.org/])])
+AC_CHECK_HEADER([gmp.h],,AC_MSG_ERROR(gmp headers missing))
+
 AM_CONDITIONAL([WANT_JANSSON], [test x$request_jansson = xtrue])
 AM_CONDITIONAL([HAVE_WINDOWS], [test x$have_win32 = xtrue])
 AM_CONDITIONAL([USE_ASM], [test x$enable_assembly != xno])
@@ -116,6 +121,8 @@ else
 	JANSSON_LIBS=-ljansson
 fi
 
+M7_LIBS="m7/libm7.a"
+
 LIBCURL_CHECK_CONFIG(, 7.15.2, ,
   [AC_MSG_ERROR([Missing required libcurl >= 7.15.2])])
 
@@ -123,10 +130,12 @@ AC_SUBST(JANSSON_LIBS)
 AC_SUBST(PTHREAD_FLAGS)
 AC_SUBST(PTHREAD_LIBS)
 AC_SUBST(WS2_LIBS)
+AC_SUBST(M7_LIBS)
 
 AC_CONFIG_FILES([
 	Makefile
 	compat/Makefile
-	compat/jansson/Makefile
+  compat/jansson/Makefile
+	m7/Makefile
 	])
 AC_OUTPUT
