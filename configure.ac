@@ -29,7 +29,7 @@ AC_CHECK_HEADERS([sys/sysctl.h], [], [],
 #endif
 ])
 
-AC_CHECK_DECLS([be32dec, le32dec, be32enc, le32enc], [], [],
+AC_CHECK_DECLS([be16dec, le16dec, be16enc, le16enc, be32dec, le32dec, be32enc, le32enc, be64dec, le64dec, be64enc, le64enc], [], [],
 [AC_INCLUDES_DEFAULT
 #ifdef HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>

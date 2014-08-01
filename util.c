@@ -1169,6 +1169,46 @@ out:
 	return ret;
 }
 
+static bool stratum_notify_m7(struct stratum_ctx *sctx, json_t *params)
+{
+	const char *job_id, *hashes, *version, *height, *ntime;
+	bool clean;
+
+	job_id = json_string_value(json_array_get(params, 0));
+	hashes = json_string_value(json_array_get(params, 1));
+	version = json_string_value(json_array_get(params, 2));
+	height = json_string_value(json_array_get(params, 3));
+	ntime = json_string_value(json_array_get(params, 4));
+	clean = json_is_true(json_array_get(params, 5));
+
+	if (!job_id || !hashes || !version || !height || !ntime ||
+		strlen(hashes) != 96*2 || strlen(height) != 8*2 ||
+		strlen(ntime) != 8*2 || strlen(version) != 2*2) {
+		applog(LOG_ERR, "Stratum (M7) notify: invalid parameters");
+		return false;
+	}
+
+	pthread_mutex_lock(&sctx->work_lock);
+
+	// if (!sctx->job.job_id || strcmp(sctx->job.job_id, job_id))
+	// 	memset(sctx->job.xnonce2, 0, sctx->xnonce2_size);
+	free(sctx->job.job_id);
+	sctx->job.job_id = strdup(job_id);
+
+	hex2bin(sctx->job.m7hashes, hashes, 96);
+	hex2bin(sctx->job.m7version, version, 2);
+	hex2bin(sctx->job.m7height, height, 8);
+	hex2bin(sctx->job.m7ntime, ntime, 8);
+	sctx->job.clean = clean;
+	sctx->job.m7xnonce = 0;
+
+	sctx->job.diff = sctx->next_diff;
+
+	pthread_mutex_unlock(&sctx->work_lock);
+
+	return true;
+}
+
 static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 {
 	const char *job_id, *prevhash, *coinb1, *coinb2, *version, *nbits, *ntime;
@@ -1368,7 +1408,11 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s)
 	params = json_object_get(val, "params");
 
 	if (!strcasecmp(method, "mining.notify")) {
-		ret = stratum_notify(sctx, params);
+		if (opt_algo == ALGO_M7) {
+			ret = stratum_notify_m7(sctx, params);
+		} else {
+			ret = stratum_notify(sctx, params);
+		}
 		goto out;
 	}
 	if (!strcasecmp(method, "mining.set_difficulty")) {
