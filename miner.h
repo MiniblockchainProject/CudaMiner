@@ -216,7 +216,7 @@ static inline void le64enc(void *pp, uint64_t x)
 #define JSON_LOAD_FILE(path, err_ptr) json_load_file(path, err_ptr)
 #endif
 
-#define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION
+#define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION "-xcn"
 
 void sha256_init(uint32_t *state);
 void sha256_transform(uint32_t *state, const uint32_t *block, int swap);
@@ -314,10 +314,11 @@ struct stratum_job {
 	bool clean;
 	double diff;
 
-	unsigned char m7hashes[96];
+	unsigned char m7prevblock[32];
+	unsigned char m7accroot[32];
+	unsigned char m7merkleroot[32];
 	unsigned char m7height[8];
 	unsigned char m7ntime[8];
-	uint32_t m7xnonce;
 	unsigned char m7version[2];
 };
 

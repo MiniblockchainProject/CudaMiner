@@ -664,15 +664,17 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 	if (have_stratum) {
 		if (opt_algo == ALGO_M7) {
 			uint64_t ntime, nonce;
-			char ntimestr[17], noncestr[17];
+			char ntimestr[17], noncestr[9], *xnonce2str;
 
-			le64enc(&ntime, work->data64[12]);
-			le64enc(&nonce, work->data64[14]);
+			be64enc(&ntime, work->data64[12]);
+			be32enc(&nonce, work->data[29]);
 			bin2hex(ntimestr, (const unsigned char *)(&ntime), 8);
-			bin2hex(noncestr, (const unsigned char *)(&nonce), 8);
+			bin2hex(noncestr, (const unsigned char *)(&nonce), 4);
+			xnonce2str = abin2hex(work->xnonce2, work->xnonce2_len);
 			sprintf(s,
-				"{\"method\": \"mining.submit\", \"params\": [\"%s\", \"%s\", \"%s\", \"%s\"], \"id\":4}",
-				rpc_user, work->job_id, ntimestr, noncestr);
+				"{\"method\": \"mining.submit\", \"params\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"], \"id\":4}",
+				rpc_user, work->job_id, xnonce2str, ntimestr, noncestr);
+			free(xnonce2str);
 		} else {
 			uint32_t ntime, nonce;
 			char ntimestr[9], noncestr[9], *xnonce2str;
@@ -1086,27 +1088,39 @@ static void stratum_gen_work_m7(struct stratum_ctx *sctx, struct work *work)
 
 	free(work->job_id);
 	work->job_id = strdup(sctx->job.job_id);
+	work->xnonce2_len = sctx->xnonce2_size;
+	work->xnonce2 = realloc(work->xnonce2, sctx->xnonce2_size);
+	memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
+
+	/* Increment extranonce2 */
+	for (i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
 
 	/* Assemble block header */
 	memset(work->data, 0, 122);
-	memcpy(work->data, sctx->job.m7hashes, 96);
-	work->data64[12] = le64dec(sctx->job.m7ntime);
-	work->data64[13] = le64dec(sctx->job.m7height);
-	work->data[28] = sctx->job.m7xnonce;
-	work->data16[60] = le16dec(sctx->job.m7version);
-
-	sctx->job.m7xnonce += 1;
+	memcpy(work->data, sctx->job.m7prevblock, 32);
+	memcpy(work->data + 8, sctx->job.m7accroot, 32);
+	memcpy(work->data + 16, sctx->job.m7merkleroot, 32);
+	work->data64[12] = be64dec(sctx->job.m7ntime);
+	work->data64[13] = be64dec(sctx->job.m7height);
+	unsigned char *xnonce_ptr = (unsigned char *)(work->data + 28);
+	for (i = 0; i < sctx->xnonce1_size; i++) {
+		*(xnonce_ptr + i) = sctx->xnonce1[i];
+	}
+	for (i = 0; i < work->xnonce2_len; i++) {
+		*(xnonce_ptr + sctx->xnonce1_size + i) = work->xnonce2[i];
+	}
+	work->data16[60] = be16dec(sctx->job.m7version);
 
 	pthread_mutex_unlock(&sctx->work_lock);
 
-	diff_to_target(work->target, sctx->job.diff);
+	diff_to_target(work->target, sctx->job.diff / 65536.0);
 
 	if (opt_debug) {
 		char data_str[245], target_str[65];
 		bin2hex(data_str, (unsigned char *)work->data, 122);
 		applog(LOG_DEBUG, "DEBUG: stratum_gen_work data %s", data_str);
 		bin2hex(target_str, (unsigned char *)work->target, 32);
-		applog(LOG_DEBUG, "DEBUG: stratum_gen_work target %s", data_str);
+		applog(LOG_DEBUG, "DEBUG: stratum_gen_work target %s", target_str);
 	}
 }
 
@@ -1134,6 +1148,7 @@ static int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 	uint32_t hash[8] __attribute__((aligned(32)));
 	uint32_t n = pdata[29] - 1;
 	const uint32_t first_nonce = pdata[29];
+	char data_str[245], hash_str[65], target_str[65];
 	
 	memcpy(data, pdata, 122);
 
@@ -1142,6 +1157,16 @@ static int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		m7hash((const char *)hash, (const unsigned char *)data, 122);
 		int rc = fulltest_m7hash(hash, ptarget);
 		if (rc) {
+			if (opt_debug) {
+				bin2hex(hash_str, (unsigned char *)hash, 32);
+				bin2hex(target_str, (unsigned char *)ptarget, 32);
+				bin2hex(data_str, (unsigned char *)data, 122);
+				applog(LOG_DEBUG, "DEBUG: [%d thread] Found share!\ndata   %s\nhash   %s\ntarget %s", thr_id, 
+					data_str,
+					hash_str,
+					target_str);
+			}
+
 			pdata[29] = data[29];
 			*hashes_done = n - first_nonce + 1;
 			return 1;
