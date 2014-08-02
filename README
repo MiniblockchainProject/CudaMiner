@@ -1,20 +1,21 @@
-This is a multi-threaded CPU miner for Litecoin and Bitcoin,
-fork of Jeff Garzik's reference cpuminer.
+*** CPU miner by 1GH pool ***
+***  http://xcn.1gh.com/  ***
+
+This is a multi-threaded CPU miner for Cryptonite (XCN),
+fork of pooler's cpuminer.
 
 License: GPLv2.  See COPYING for details.
 
-Downloads:  https://sourceforge.net/projects/cpuminer/files/
-Git tree:   https://github.com/pooler/cpuminer
-
 Dependencies:
 	libcurl			http://curl.haxx.se/libcurl/
+	libgmp			https://gmplib.org/
 	jansson			http://www.digip.org/jansson/
 		(jansson is included in-tree)
 
 Basic *nix build instructions:
 	./autogen.sh	# only needed if building from git repo
 	./nomacro.pl	# only needed if building on Mac OS X or with Clang
-	./configure CFLAGS="-O3"
+	./configure CFLAGS="-O3" CXXFLAGS="-O3"
 	make
 
 Notes for AIX users:
