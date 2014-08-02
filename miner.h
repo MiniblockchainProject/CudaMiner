@@ -245,6 +245,9 @@ extern int scanhash_scrypt(int thr_id, uint32_t *pdata,
 	unsigned char *scratchbuf, const uint32_t *ptarget,
 	uint32_t max_nonce, unsigned long *hashes_done, int N);
 
+int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+    uint64_t max_nonce, unsigned long *hashes_done);
+
 struct thr_info {
 	int		id;
 	pthread_t	pth;
