@@ -1,9 +1,9 @@
 
 noinst_LIBRARIES	= libm7.a
 
-libm7_a_SOURCES = haval.cpp keccak.cpp \
-		ripemd.cpp sha2.cpp sha2big.cpp \
+libm7_a_SOURCES = haval.c keccak.c \
+		ripemd.c sha2.c sha2big.c \
 		sph_haval.h sph_keccak.h sph_ripemd.h \
 		sph_sha2.h sph_tiger.h sph_whirlpool.h \
-		tiger.cpp whirlpool.cpp m7hash.cpp m7hash.h
+		tiger.c whirlpool.c m7hash.c m7hash.h
 

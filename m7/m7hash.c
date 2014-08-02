@@ -1,7 +1,7 @@
 
-#include <cstring>
-#include <cstdlib>
 #include <gmp.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "sph_sha2.h"
 #include "sph_keccak.h"
@@ -35,8 +35,7 @@ static void set_one_if_zero(char *hash512) {
     hash512[0] = 1;
 }
 
-// unsigned char *hash, const unsigned char *data, int len
-extern "C" void m7hash(const char *finalhash, const unsigned char *input, int len)
+void m7hash(const char *finalhash, const unsigned char *input, int len)
 {
     sph_sha256_context       ctx_sha256;
     sph_sha512_context       ctx_sha512;
