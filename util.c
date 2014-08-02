@@ -1172,7 +1172,7 @@ out:
 static bool stratum_notify_m7(struct stratum_ctx *sctx, json_t *params)
 {
 	const char *job_id, *prevblock, *accroot, *merkleroot, *version, *ntime;
-	json_int_t height;
+	int height;
 	bool clean;
 
 	job_id = json_string_value(json_array_get(params, 0));
