@@ -70,13 +70,11 @@ int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     char data_str[245], hash_str[65], target_str[65];
     uint8_t *bdata = 0;
     mpz_t bns[7];
-    mpz_t product;
     int rc = 0;
 
     for(int i=0; i < 7; i++){
         mpz_init(bns[i]);
     }
-    mpz_init(product);
 
     memcpy(data, pdata, 122);
 
@@ -157,14 +155,13 @@ int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
             mpz_set_uint512(bns[i],bhash[i]);
         }
         
-        mpz_set_ui(product,1);
-        for(int i=0; i < 7; i++){
-            mpz_mul(product,product,bns[i]);
+        for(int i=6; i > 0; i--){
+            mpz_mul(bns[i-1], bns[i-1], bns[i]);
         }
 
-        int bytes = mpz_sizeinbase(product, 256);
+        int bytes = mpz_sizeinbase(bns[0], 256);
         bdata = (uint8_t *)realloc(bdata, bytes);
-        mpz_export((void *)bdata, NULL, -1, 1, 0, 0, product);
+        mpz_export((void *)bdata, NULL, -1, 1, 0, 0, bns[0]);
 
         sph_sha256_init(&ctx_final_sha256);
         sph_sha256 (&ctx_final_sha256, bdata, bytes);
@@ -194,7 +191,6 @@ out:
     for(int i=0; i < 7; i++){
         mpz_clear(bns[i]);
     }
-    mpz_clear(product);
 
     *hashes_done = n - first_nonce + 1;
     free(bdata);
