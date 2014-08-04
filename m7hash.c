@@ -102,22 +102,18 @@ static void m7hash_old(const char *finalhash, const unsigned char *input, int le
         mpz_set_uint512(bns[i],hash[i]);
     }
  
-    mpz_t product;
-    mpz_init(product);
-    mpz_set_ui(product,1);
-    for(int i=0; i < 7; i++){
-        mpz_mul(product,product,bns[i]);
+    for(int i=1; i < 7; i++){
+        mpz_mul(bns[0],bns[0],bns[i]);
     }
 
-    int bytes = mpz_sizeinbase(product, 256);
+    int bytes = mpz_sizeinbase(bns[0], 256);
     char *data = (char*)malloc(bytes);
-    mpz_export((void *)data, NULL, -1, 1, 0, 0, product);
+    mpz_export((void *)data, NULL, -1, 1, 0, 0, bns[0]);
 
     //Free the memory
     for(int i=0; i < 7; i++){
         mpz_clear(bns[i]);
     }
-    mpz_clear(product);
 
     sph_sha256_init(&ctx_sha256);
     // ZSHA256;
@@ -184,11 +180,12 @@ int scanhash_m7hash_old(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     return 0;
 }
 
+#define M7_MIDSTATE_LEN 116
 int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     uint64_t max_nonce, unsigned long *hashes_done)
 {
     uint32_t data[32] __attribute__((aligned(128)));
-    uint32_t *data_p64 = data + 16;
+    uint32_t *data_p64 = data + (M7_MIDSTATE_LEN / sizeof(data[0]));
     uint32_t hash[8] __attribute__((aligned(32)));
     uint8_t bhash[7][64] __attribute__((aligned(32)));
     uint32_t hashtest[8] __attribute__((aligned(32)));
@@ -218,25 +215,25 @@ int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     sph_ripemd160_context    ctx_ripemd;
 
     sph_sha256_init(&ctx_sha256);
-    sph_sha256 (&ctx_sha256, data, 64);
+    sph_sha256 (&ctx_sha256, data, M7_MIDSTATE_LEN);
     
     sph_sha512_init(&ctx_sha512);
-    sph_sha512 (&ctx_sha512, data, 64);
+    sph_sha512 (&ctx_sha512, data, M7_MIDSTATE_LEN);
     
     sph_keccak512_init(&ctx_keccak);
-    sph_keccak512 (&ctx_keccak, data, 64);
+    sph_keccak512 (&ctx_keccak, data, M7_MIDSTATE_LEN);
 
     sph_whirlpool_init(&ctx_whirlpool);
-    sph_whirlpool (&ctx_whirlpool, data, 64);
+    sph_whirlpool (&ctx_whirlpool, data, M7_MIDSTATE_LEN);
     
     sph_haval256_5_init(&ctx_haval);
-    sph_haval256_5 (&ctx_haval, data, 64);
+    sph_haval256_5 (&ctx_haval, data, M7_MIDSTATE_LEN);
 
     sph_tiger_init(&ctx_tiger);
-    sph_tiger (&ctx_tiger, data, 64);
+    sph_tiger (&ctx_tiger, data, M7_MIDSTATE_LEN);
 
     sph_ripemd160_init(&ctx_ripemd);
-    sph_ripemd160 (&ctx_ripemd, data, 64);
+    sph_ripemd160 (&ctx_ripemd, data, M7_MIDSTATE_LEN);
 
     sph_sha256_context       ctx2_sha256;
     sph_sha512_context       ctx2_sha512;
@@ -252,31 +249,31 @@ int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
         memset(bhash, 0, 7 * 64);
 
         ctx2_sha256 = ctx_sha256;
-        sph_sha256 (&ctx2_sha256, data_p64, 58);
+        sph_sha256 (&ctx2_sha256, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_sha256_close(&ctx2_sha256, (void*)(bhash[0]));
 
         ctx2_sha512 = ctx_sha512;
-        sph_sha512 (&ctx2_sha512, data_p64, 58);
+        sph_sha512 (&ctx2_sha512, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_sha512_close(&ctx2_sha512, (void*)(bhash[1]));
         
         ctx2_keccak = ctx_keccak;
-        sph_keccak512 (&ctx2_keccak, data_p64, 58);
+        sph_keccak512 (&ctx2_keccak, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_keccak512_close(&ctx2_keccak, (void*)(bhash[2]));
 
         ctx2_whirlpool = ctx_whirlpool;
-        sph_whirlpool (&ctx2_whirlpool, data_p64, 58);
+        sph_whirlpool (&ctx2_whirlpool, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_whirlpool_close(&ctx2_whirlpool, (void*)(bhash[3]));
         
         ctx2_haval = ctx_haval;
-        sph_haval256_5 (&ctx2_haval, data_p64, 58);
+        sph_haval256_5 (&ctx2_haval, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_haval256_5_close(&ctx2_haval, (void*)(bhash[4]));
 
         ctx2_tiger = ctx_tiger;
-        sph_tiger (&ctx2_tiger, data_p64, 58);
+        sph_tiger (&ctx2_tiger, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_tiger_close(&ctx2_tiger, (void*)(bhash[5]));
 
         ctx2_ripemd = ctx_ripemd;
-        sph_ripemd160 (&ctx2_ripemd, data_p64, 58);
+        sph_ripemd160 (&ctx2_ripemd, data_p64, 122 - M7_MIDSTATE_LEN);
         sph_ripemd160_close(&ctx2_ripemd, (void*)(bhash[6]));
 
         for(int i=0; i < 7; i++){
