@@ -102,22 +102,18 @@ static void m7hash_old(const char *finalhash, const unsigned char *input, int le
         mpz_set_uint512(bns[i],hash[i]);
     }
  
-    mpz_t product;
-    mpz_init(product);
-    mpz_set_ui(product,1);
-    for(int i=0; i < 7; i++){
-        mpz_mul(product,product,bns[i]);
+    for(int i=1; i < 7; i++){
+        mpz_mul(bns[0],bns[0],bns[i]);
     }
 
-    int bytes = mpz_sizeinbase(product, 256);
+    int bytes = mpz_sizeinbase(bns[0], 256);
     char *data = (char*)malloc(bytes);
-    mpz_export((void *)data, NULL, -1, 1, 0, 0, product);
+    mpz_export((void *)data, NULL, -1, 1, 0, 0, bns[0]);
 
     //Free the memory
     for(int i=0; i < 7; i++){
         mpz_clear(bns[i]);
     }
-    mpz_clear(product);
 
     sph_sha256_init(&ctx_sha256);
     // ZSHA256;
