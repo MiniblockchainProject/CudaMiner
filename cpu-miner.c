@@ -1131,6 +1131,8 @@ static void stratum_gen_work_m7(struct stratum_ctx *sctx, struct work *work)
 	}
 }
 
+void* cuda_init(int id);
+
 static void *miner_thread(void *userdata)
 {
 	struct thr_info *mythr = userdata;
@@ -1141,6 +1143,8 @@ static void *miner_thread(void *userdata)
 	unsigned char *scratchbuf = NULL;
 	char s[16];
 	int i;
+
+	void* cuda_ctx = cuda_init(thr_id);
 
 	/* Set worker threads to nice 19 and then preferentially to SCHED_IDLE
 	 * and if that fails, then SCHED_BATCH. No need for this to be an
@@ -1277,7 +1281,7 @@ static void *miner_thread(void *userdata)
 			break;
 
 		case ALGO_M7:
-			rc = scanhash_m7hash(thr_id, work.data, work.target,
+			rc = scanhash_m7hash(thr_id, cuda_ctx, work.data, work.target,
 			                      max_nonce, &hashes_done);
 			break;
 

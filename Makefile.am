@@ -18,7 +18,17 @@ dist_man_MANS	= minerd.1
 
 minerd_SOURCES	= elist.h miner.h compat.h \
 		  cpu-miner.c util.c \
-		  sha2.c scrypt.c m7hash.c
+		  sha2.c scrypt.c m7hash.c \
+		  trashminer.cu cuda_mul.cu \
+		  cuda_sha256.cu cuda_sha512.cu \
+		  cuda_whirlpool512.cu cuda_keccak512.cu \
+		  cuda_tiger.cu cuda_ripemd160.cu \
+		  cuda_haval256.cu
+
+.cu.o:
+	nvcc -Xptxas "-abi=no -v" -arch=compute_35 --ptxas-options=-v   -O2 -o $@ -c $<
+
+
 if USE_ASM
 if ARCH_x86
 minerd_SOURCES += sha2-x86.S scrypt-x86.S
@@ -30,7 +40,7 @@ if ARCH_ARM
 minerd_SOURCES += sha2-arm.S scrypt-arm.S
 endif
 endif
-minerd_LDFLAGS	= $(PTHREAD_FLAGS)
-minerd_LDADD	= @LIBCURL@ @JANSSON_LIBS@ @PTHREAD_LIBS@ @WS2_LIBS@ @M7_LIBS@
+minerd_LDFLAGS	= $(PTHREAD_FLAGS) -L/usr/local/cuda/lib64
+minerd_LDADD	= @LIBCURL@ @JANSSON_LIBS@ @PTHREAD_LIBS@ @WS2_LIBS@ @M7_LIBS@ -lstdc++ -lcudart -lgmp
 minerd_CPPFLAGS = @LIBCURL_CPPFLAGS@
 

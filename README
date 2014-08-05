@@ -1,7 +1,7 @@
 *** CPU miner by 1GH pool ***
 ***  http://xcn.1gh.com/  ***
 
-This is a multi-threaded CPU miner for Cryptonite (XCN),
+This is a multi-threaded GPU miner for Cryptonite (XCN),
 fork of pooler's cpuminer.
 
 License: GPLv2.  See COPYING for details.
@@ -10,6 +10,7 @@ Dependencies:
 	libcurl			http://curl.haxx.se/libcurl/
 	libgmp			https://gmplib.org/
 	jansson			http://www.digip.org/jansson/
+	cuda
 		(jansson is included in-tree)
 
 Basic *nix build instructions:
@@ -17,6 +18,9 @@ Basic *nix build instructions:
 	./nomacro.pl	# only needed if building on Mac OS X or with Clang
 	./configure CFLAGS="-O3" CXXFLAGS="-O3"
 	make
+
+Notes for *nix build:
+	make sure nvcc is in path and libcudart is in LD_LIBRARY_PATH before build
 
 Notes for AIX users:
 	* To build a 64-bit binary, export OBJECT_MODE=64
