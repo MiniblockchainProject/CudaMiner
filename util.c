@@ -27,7 +27,7 @@
 #include <jansson.h>
 #include <curl/curl.h>
 #include <time.h>
-#if WIN
+#ifdef WIN
 #include <winsock2.h>
 #include <mstcpip.h>
 #else

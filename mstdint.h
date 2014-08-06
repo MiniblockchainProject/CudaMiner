@@ -30,10 +30,7 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef _WIN32 || _WIN64
-#include <stdint.h>
-#else
-
+#ifdef _WIN32 || _WIN64
 
 #ifndef _MSC_VER // [
 #error "Use this header only with Microsoft Visual C++ compilers!"
@@ -46,8 +43,11 @@
 #pragma once
 #endif
 
-#if _MSC_VER >= 2000 // [
+#if _MSC_VER >= 1600 // [
 #include <stdint.h>
+// 7.18.1.5 Greatest-width integer types
+typedef int64_t   intmax_t;
+typedef uint64_t  uintmax_t;
 #else // ] _MSC_VER >= 1600 [
 
 #include <limits.h>
@@ -262,4 +262,9 @@ typedef uint64_t  uintmax_t;
 #endif // _MSC_VER >= 1600 ]
 
 #endif // _MSC_STDINT_H_ ]
+
+#else
+
+#include <stdint.h>
+
 #endif

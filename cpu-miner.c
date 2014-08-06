@@ -17,6 +17,7 @@
 #include "minttypes.h"
 #ifdef _WIN32 || _WIN64
 #define WIN
+#include <winsock2.h>
 #include <windows.h>
 #include <time.h>
 #else
@@ -44,7 +45,7 @@
 
 #ifdef __linux /* Linux specific policy and affinity management */
 #include <sched.h>
-static inline void drop_policy(void)
+static void drop_policy(void)
 {
 	struct sched_param param;
 	param.sched_priority = 0;
@@ -57,7 +58,7 @@ static inline void drop_policy(void)
 #endif
 }
 
-static inline void affine_to_cpu(int id, int cpu)
+static void affine_to_cpu(int id, int cpu)
 {
 	cpu_set_t set;
 
@@ -67,11 +68,11 @@ static inline void affine_to_cpu(int id, int cpu)
 }
 #elif defined(__FreeBSD__) /* FreeBSD specific policy and affinity management */
 #include <sys/cpuset.h>
-static inline void drop_policy(void)
+static void drop_policy(void)
 {
 }
 
-static inline void affine_to_cpu(int id, int cpu)
+static void affine_to_cpu(int id, int cpu)
 {
 	cpuset_t set;
 	CPU_ZERO(&set);
@@ -79,11 +80,11 @@ static inline void affine_to_cpu(int id, int cpu)
 	cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t), &set);
 }
 #else
-static inline void drop_policy(void)
+static void drop_policy(void)
 {
 }
 
-static inline void affine_to_cpu(int id, int cpu)
+static void affine_to_cpu(int id, int cpu)
 {
 }
 #endif
@@ -99,12 +100,6 @@ struct workio_cmd {
 	union {
 		struct work	*work;
 	} u;
-};
-
-static const char *algo_names[] = {
-	[ALGO_SCRYPT]		= "scrypt",
-	[ALGO_SHA256D]		= "sha256d",
-	[ALGO_M7]			= "m7",
 };
 
 bool opt_debug = false;
@@ -277,7 +272,7 @@ static pthread_mutex_t g_work_lock;
 static bool submit_old = false;
 static char *lp_id;
 
-static inline void work_free(struct work *w)
+static void work_free(struct work *w)
 {
 	free(w->txs);
 	free(w->workid);
@@ -285,7 +280,7 @@ static inline void work_free(struct work *w)
 	free(w->xnonce2);
 }
 
-static inline void work_copy(struct work *dest, const struct work *src)
+static void work_copy(struct work *dest, const struct work *src)
 {
 	memcpy(dest, src, sizeof(struct work));
 	if (src->txs)
@@ -1604,31 +1599,6 @@ static void parse_arg(int key, char *arg, char *pname)
 	int v, i;
 
 	switch(key) {
-	case 'a':
-		for (i = 0; i < ARRAY_SIZE(algo_names); i++) {
-			v = strlen(algo_names[i]);
-			if (!strncmp(arg, algo_names[i], v)) {
-				if (arg[v] == '\0') {
-					opt_algo = i;
-					break;
-				}
-				if (arg[v] == ':' && i == ALGO_SCRYPT) {
-					char *ep;
-					v = strtol(arg+v+1, &ep, 10);
-					if (*ep || v & (v-1) || v < 2)
-						continue;
-					opt_algo = i;
-					opt_scrypt_n = v;
-					break;
-				}
-			}
-		}
-		if (i == ARRAY_SIZE(algo_names)) {
-			fprintf(stderr, "%s: unknown algorithm -- '%s'\n",
-				pname, arg);
-			show_usage_and_exit(1);
-		}
-		break;
 	case 'B':
 		opt_background = true;
 		break;
@@ -2067,7 +2037,7 @@ int main(int argc, char *argv[])
 	applog(LOG_INFO, "%d miner threads started, "
 		"using '%s' algorithm.",
 		opt_n_threads,
-		algo_names[opt_algo]);
+		"m7");
 
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL);

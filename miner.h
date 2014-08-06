@@ -8,12 +8,15 @@
 typedef int bool;
 #define false 0
 #define true 1
+#include <time.h>
+#include <winsock2.h>
 #endif
 #else
 #include <stdbool.h>
+#include <sys/time.h>
 #endif
 #include "minttypes.h"
-#include <sys/time.h>
+
 #include <pthread.h>
 #include <jansson.h>
 #include <curl/curl.h>
@@ -77,7 +80,7 @@ enum {
                    | (((x) >> 8) & 0x0000ff00u) | (((x) >> 24) & 0x000000ffu))
 #endif
 
-static inline uint32_t swab32(uint32_t v)
+static uint32_t swab32(uint32_t v)
 {
 #ifdef WANT_BUILTIN_BSWAP
 	return __builtin_bswap32(v);
@@ -91,7 +94,7 @@ static inline uint32_t swab32(uint32_t v)
 #endif
 
 #if !HAVE_DECL_BE32DEC
-static inline uint32_t be32dec(const void *pp)
+static uint32_t be32dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint32_t)(p[3]) + ((uint32_t)(p[2]) << 8) +
@@ -100,7 +103,7 @@ static inline uint32_t be32dec(const void *pp)
 #endif
 
 #if !HAVE_DECL_LE32DEC
-static inline uint32_t le32dec(const void *pp)
+static uint32_t le32dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint32_t)(p[0]) + ((uint32_t)(p[1]) << 8) +
@@ -109,7 +112,7 @@ static inline uint32_t le32dec(const void *pp)
 #endif
 
 #if !HAVE_DECL_BE32ENC
-static inline void be32enc(void *pp, uint32_t x)
+static void be32enc(void *pp, uint32_t x)
 {
 	uint8_t *p = (uint8_t *)pp;
 	p[3] = x & 0xff;
@@ -120,7 +123,7 @@ static inline void be32enc(void *pp, uint32_t x)
 #endif
 
 #if !HAVE_DECL_LE32ENC
-static inline void le32enc(void *pp, uint32_t x)
+static void le32enc(void *pp, uint32_t x)
 {
 	uint8_t *p = (uint8_t *)pp;
 	p[0] = x & 0xff;
@@ -131,7 +134,7 @@ static inline void le32enc(void *pp, uint32_t x)
 #endif
 
 #if !HAVE_DECL_BE16DEC
-static inline uint16_t be16dec(const void *pp)
+static uint16_t be16dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint16_t)(p[1]) + ((uint16_t)(p[0]) << 8));
@@ -139,7 +142,7 @@ static inline uint16_t be16dec(const void *pp)
 #endif
 
 #if !HAVE_DECL_LE16DEC
-static inline uint16_t le16dec(const void *pp)
+static uint16_t le16dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint16_t)(p[0]) + ((uint16_t)(p[1]) << 8));
@@ -147,7 +150,7 @@ static inline uint16_t le16dec(const void *pp)
 #endif
 
 #if !HAVE_DECL_BE16ENC
-static inline void be16enc(void *pp, uint16_t x)
+static void be16enc(void *pp, uint16_t x)
 {
 	uint8_t *p = (uint8_t *)pp;
 	p[1] = x & 0xff;
@@ -156,7 +159,7 @@ static inline void be16enc(void *pp, uint16_t x)
 #endif
 
 #if !HAVE_DECL_LE16ENC
-static inline void le16enc(void *pp, uint16_t x)
+static void le16enc(void *pp, uint16_t x)
 {
 	uint8_t *p = (uint8_t *)pp;
 	p[0] = x & 0xff;
@@ -165,7 +168,7 @@ static inline void le16enc(void *pp, uint16_t x)
 #endif
 
 #if !HAVE_DECL_BE64DEC
-static inline uint64_t be64dec(const void *pp)
+static uint64_t be64dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint64_t)(p[7]) + ((uint64_t)(p[6]) << 8) +
@@ -176,7 +179,7 @@ static inline uint64_t be64dec(const void *pp)
 #endif
 
 #if !HAVE_DECL_LE64DEC
-static inline uint64_t le64dec(const void *pp)
+static uint64_t le64dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint64_t)(p[0]) + ((uint64_t)(p[1]) << 8) +
@@ -187,7 +190,7 @@ static inline uint64_t le64dec(const void *pp)
 #endif
 
 #if !HAVE_DECL_BE64ENC
-static inline void be64enc(void *pp, uint64_t x)
+static void be64enc(void *pp, uint64_t x)
 {
 	uint8_t *p = (uint8_t *)pp;
 	p[7] = x & 0xff;
@@ -202,7 +205,7 @@ static inline void be64enc(void *pp, uint64_t x)
 #endif
 
 #if !HAVE_DECL_LE64ENC
-static inline void le64enc(void *pp, uint64_t x)
+static void le64enc(void *pp, uint64_t x)
 {
 	uint8_t *p = (uint8_t *)pp;
 	p[0] = x & 0xff;

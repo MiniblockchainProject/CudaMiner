@@ -54,7 +54,6 @@ extern "C" {
 #include "cuda_helper.h"
 #include "trashminer.h"
 
-
 extern cudaError_t MyStreamSynchronize(cudaStream_t stream, int situation, int thr_id);
 
 #define USE_SHARED 1
@@ -70,35 +69,6 @@ extern cudaError_t MyStreamSynchronize(cudaStream_t stream, int situation, int t
     // Kepler (Compute 3.5)
     #define SPH_ROTL32(x, n) __funnelshift_l( (x), (x), (n) )
 #endif
-
-// das Hi Word aus einem 64 Bit Typen extrahieren
-static __device__ uint32_t HIWORD(const unsigned long long &x) {
-#if __CUDA_ARCH__ >= 130
-	return (uint32_t)__double2hiint(__longlong_as_double(x));
-#else
-	return (uint32_t)(x >> 32);
-#endif
-}
-
-// das Hi Word in einem 64 Bit Typen ersetzen
-static __device__ unsigned long long REPLACE_HIWORD(const unsigned long long &x, const uint32_t &y) {
-	return (x & 0xFFFFFFFFULL) | (((unsigned long long)y) << 32ULL);
-}
-
-// das Lo Word aus einem 64 Bit Typen extrahieren
-static __device__ uint32_t LOWORD(const unsigned long long &x) {
-#if __CUDA_ARCH__ >= 130
-	return (uint32_t)__double2loint(__longlong_as_double(x));
-#else
-	return (uint32_t)(x & 0xFFFFFFFFULL);
-#endif
-}
-
-
-// das Lo Word in einem 64 Bit Typen ersetzen
-static __device__ unsigned long long REPLACE_LOWORD(const unsigned long long &x, const uint32_t &y) {
-	return (x & 0xFFFFFFFF00000000ULL) | ((unsigned long long)y);
-}
 
 // aus heavy.cu
 extern cudaError_t MyStreamSynchronize(cudaStream_t stream, int situation, int thr_id);
