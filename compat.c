@@ -1,4 +1,3 @@
-
 #include < time.h >
 #include <windows.h> //I've ommited this line.
 #if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
@@ -16,7 +15,7 @@ struct timezone
 int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
   FILETIME ft;
-  unsigned int64_t tmpres = 0;
+  unsigned __int64 tmpres = 0;
   static int tzflag;
  
   if (NULL != tv)
@@ -48,7 +47,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
   return 0;
 }
 
-void usleep(int64_t waitTime) 
+void usleep(__int64 waitTime) 
 { 
     if (waitTime > 0)
     {
@@ -71,13 +70,13 @@ void usleep(int64_t waitTime)
             // use a polling loop for short intervals <= 100ms
 
             LARGE_INTEGER perfCnt, start, now;
-            int64_t elapsed;
+            __int64 elapsed;
  
             QueryPerformanceFrequency(&perfCnt);
             QueryPerformanceCounter(&start);
             do {
                 QueryPerformanceCounter((LARGE_INTEGER*) &now);
-                elapsed = (int64_t)((now.QuadPart - start.QuadPart) / (float)perfCnt.QuadPart * 1000 * 1000);
+                elapsed = (__int64)((now.QuadPart - start.QuadPart) / (float)perfCnt.QuadPart * 1000 * 1000);
             } while ( elapsed < waitTime );
         }
     }
