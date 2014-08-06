@@ -47,12 +47,19 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <memory.h>
+#ifdef DEBUG_HASH
 #include <gmp.h>
+#endif
 #include <map>
-#include <sys/time.h>
+
 
 #ifndef WIN32
 #include <unistd.h>
+#include <sys/time.h>
+#else
+#include <time.h>
+int gettimeofday(struct timeval *tv, struct timezone *tz);
+void usleep(int64_t waitTime);
 #endif
 
 #include "uint256.h"
