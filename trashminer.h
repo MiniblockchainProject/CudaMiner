@@ -22,6 +22,8 @@ struct ctx {
 	uint32_t* ripemd_dblock;
 
 	int thr_id;
+
+	uint64_t* keccak_dstate;
 };
 
 #pragma pack(push,1)

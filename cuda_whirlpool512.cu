@@ -1248,37 +1248,15 @@ static const uint64_t plain_RC[10] = {
 	uint64_t prev[8];
 	
 
-        prev[0] = n0 = inpHash[0];
-        prev[1] = n1 = inpHash[1];
-        prev[2] = n2 = inpHash[2];
-        prev[3] = n3 = inpHash[3];
-        prev[4] = n4 = inpHash[4];
-        prev[5] = n5 = inpHash[5];
-        prev[6] = n6 = inpHash[6];
-        prev[7] = n7 = inpHash[7];
+        state[0] = inpHash[0];
+        state[1] = inpHash[1];
+        state[2] = inpHash[2];
+        state[3] = inpHash[3];
+        state[4] = inpHash[4];
+        state[5] = inpHash[5];
+        state[6] = inpHash[6];
+        state[7] = inpHash[7];
 
-//		prev[i] = n[i];
-	       	//n[i] = xor1(n[i],h[i]);
-	h0 = h1 = h2 = h3 = h4 = h5 = h6 = h7 = 0;
-
-#pragma unroll 1
-    	for (unsigned r = 0; r < 10; r ++) {
-		uint64_t tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
-
-		ROUND_KSCHED(mixtob_T, h, tmp,InitVector_RC[r]);
-		TRANSFER(h, tmp);
-		ROUND_WENC(mixtob_T, n, h, tmp);
-		TRANSFER(n, tmp);
-	}
-	
-	state[0]=xor1(n0,prev[0]);
-	state[1]=xor1(n1,prev[1]);
-	state[2]=xor1(n2,prev[2]);
-	state[3]=xor1(n3,prev[3]);
-	state[4]=xor1(n4,prev[4]);
-	state[5]=xor1(n5,prev[5]);
-	state[6]=xor1(n6,prev[6]);
-	state[7]=xor1(n7,prev[7]);
 
 
 //round 2
@@ -1477,9 +1455,16 @@ __host__ uint32_t whirlpool512_cpu_hash_242(int thr_id, int threads, uint64_t st
 
 }
 
+extern "C" {
+void whirlpool_round(const void *src, sph_u64 *state);
+}
+
 void whirlpool_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
-	uint64_t hash[8];
+	uint64_t state[8];
+	for(int i=0; i < 8; i++){
+		state[i] = 0;
+	}
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -1487,7 +1472,10 @@ void whirlpool_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, 
 	block[122] = 0x80;
 	((uint64_t*)block)[192/8 - 1] = swap_uint64(976);
 
-	//memcpy(block,&block[128],128);
+	whirlpool_round(hdr,state);
+
+	for(int i=0; i < 8; i++)
+		((uint64_t*)block)[i] = state[i];
 
 	gpuErrchk(cudaMemcpyAsync( pctx->whirlpool_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 

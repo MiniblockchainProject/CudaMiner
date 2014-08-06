@@ -32,6 +32,8 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdint.h>
 
 #include "sph_keccak.h"
 
@@ -1596,6 +1598,31 @@ keccak_core(sph_keccak_context *kc, const void *data, size_t len, size_t lim)
 	}
 	WRITE_STATE(kc);
 	kc->ptr = ptr;
+}
+
+void keccak_one(const void *buf, uint64_t state[])
+{
+	sph_keccak_context fkc;
+	sph_keccak_context *kc = &fkc;
+
+	keccak_init(kc,512);
+	
+	DECL_STATE
+	INPUT_BUF(72);
+	KECCAK_F_1600;
+	WRITE_STATE(kc);
+
+	/* Finalize the "lane complement" */ \
+		kc->u.wide[ 1] = ~kc->u.wide[ 1]; \
+		kc->u.wide[ 2] = ~kc->u.wide[ 2]; \
+		kc->u.wide[ 8] = ~kc->u.wide[ 8]; \
+		kc->u.wide[12] = ~kc->u.wide[12]; \
+		kc->u.wide[17] = ~kc->u.wide[17]; \
+		kc->u.wide[20] = ~kc->u.wide[20]; \
+
+	for(int i=0; i < 25; i++){
+		state[i] = kc->u.wide[i];
+	}
 }
 
 #if SPH_KECCAK_64

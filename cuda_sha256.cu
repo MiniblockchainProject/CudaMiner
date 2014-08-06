@@ -249,16 +249,9 @@ uint64_t h8[8];
 	uint32_t W[16]; 
         uint32_t r[8];	
         
-#pragma unroll 16
-	for (int i=0;i<16;i++) {
-		hash.h4[i]= SWAP32(g_block[i]);
-	}
-
 #pragma unroll 8
 	for (int i = 0; i < 8; i ++) {
-		r[i] = H_256[i];}
-
-	SHA2_ROUND_BODY(SHA2_IN, r);
+		r[i] = g_block[i];}
 
 #pragma unroll 16
 	for (int i=0;i<16;i++) {
@@ -477,15 +470,30 @@ __host__ void sha256_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 	MyStreamSynchronize(NULL, 1, thr_id);
 }
 
+extern "C" {
+void sha2_round(const unsigned char *data, sph_u32 r[8]);
+}
+
 void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
-	uint64_t hash[8];
+	uint32_t r[8];
+
+	for(int i=0; i < 8; i++){
+		r[i] = (H256[i]);
+	}
+
+	sha2_round((const uint8_t*)hdr, r);
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
 
 	block[122] = 0x80;
 	((uint32_t*)block)[192/4 - 1] = SWAP(976);
+
+
+	for(int i=0; i < 8; i++){
+		((uint32_t*)block)[i] = r[i];
+	}
 
 	gpuErrchk(cudaMemcpyAsync( pctx->sha256_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 

@@ -120,7 +120,7 @@ keccak_block(uint64_t *s, const uint64_t *keccak_round_constants) {
     }
 }
 
-__global__ void keccak512_gpu_hash_242(int threads, uint64_t startNounce, uint32_t *g_block, uint64_t *g_hash)
+__global__ void keccak512_gpu_hash_242(int threads, uint64_t startNounce, uint64_t *g_state, uint32_t *g_block, uint64_t *g_hash)
 {
         // State initialisieren
 __align__(16)    uint64_t keccak_gpu_state[25];
@@ -132,18 +132,9 @@ __align__(16)    uint64_t keccak_gpu_state[25];
 
 #pragma unroll 25
         for (int i=0; i<25; i++)
-            keccak_gpu_state[i] = 0;
+            keccak_gpu_state[i] = g_state[i];
 
-    	/* absorb input */
-#pragma unroll 9
-    	for (int i = 0; i < 72 / 8; i++){
-        	keccak_gpu_state[i] ^= U32TO64_LE(&inpHash[i*2]);
-    	}
-
-
-        // den Block einmal gut durchschütteln
-        keccak_block(keccak_gpu_state, c_keccak_round_constants);
-
+//Round 2
     	/* absorb input */
 #pragma unroll 9
 	uint64_t nonce = startNounce+thread * 0x100000000ULL;
@@ -191,9 +182,10 @@ __host__ void keccak512_cpu_init(int thr_id, int threads, ctx* pctx)
                         0, cudaMemcpyHostToDevice);
 
     gpuErrchk(cudaMalloc( (void**)&pctx->keccak_dblock, 144 )); 
+    gpuErrchk(cudaMalloc( (void**)&pctx->keccak_dstate, 25*8 )); 
 }
 
-__host__ void keccak512_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, uint32_t *d_block, uint64_t *d_hash)
+__host__ void keccak512_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, uint64_t* dstate, uint32_t *d_block, uint64_t *d_hash)
 {
     const int threadsperblock = 256;
 
@@ -204,16 +196,19 @@ __host__ void keccak512_cpu_hash_242(int thr_id, int threads, uint64_t startNoun
     // Größe des dynamischen Shared Memory Bereichs
     size_t shared_size = 0;
 
-    keccak512_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, d_block, (uint64_t*)d_hash);
+    keccak512_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, dstate, d_block, (uint64_t*)d_hash);
 
  //   cudaStreamSynchronize(0);
     MyStreamSynchronize(NULL, 3, thr_id);
 }
 
+extern "C" {
+void keccak_one(const void *data, uint64_t state[]);
+}
 
 void keccak512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[144];
-	uint64_t hash[8];
+	uint64_t state[25];
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -221,8 +216,11 @@ void keccak512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr,
 	block[122] = 0x1;
 	((uint64_t*)block)[144/8 - 1] = 0x8000000000000000UL;
 
-	gpuErrchk(cudaMemcpyAsync( pctx->keccak_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
+	keccak_one(block,state);
 
-	keccak512_cpu_hash_242(pctx->thr_id,throughput,startNounce,pctx->keccak_dblock,d_hash);
+	gpuErrchk(cudaMemcpyAsync( pctx->keccak_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->keccak_dstate, state, sizeof(state), cudaMemcpyHostToDevice, 0 )); 
+
+	keccak512_cpu_hash_242(pctx->thr_id,throughput,startNounce,pctx->keccak_dstate, pctx->keccak_dblock,d_hash);
 }
 

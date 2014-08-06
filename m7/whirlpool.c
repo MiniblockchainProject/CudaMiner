@@ -48,6 +48,8 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #include "sph_whirlpool.h"
 
@@ -3402,7 +3404,7 @@ sph_whirlpool_init(void *cc)
 }
 
 #define ROUND_FUN(name, type) \
-static void \
+void \
 name ## _round(const void *src, sph_u64 *state) \
 { \
 	LVARS \

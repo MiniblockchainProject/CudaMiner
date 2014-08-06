@@ -45,7 +45,9 @@
 #include <stdint.h>
 #include <memory.h>
 
-#include "sph_tiger.h"
+extern "C" {
+  #include "sph_tiger.h"
+}
 #include "uint256.h"
 #include "trashminer.h"
 
@@ -685,18 +687,10 @@ uint64_t h8[8];
         uint64_t W[8]; 
         uint64_t r[3];
 
-	r[0] = SPH_C64(0x0123456789ABCDEF);
-	r[1] = SPH_C64(0xFEDCBA9876543210);
-	r[2] = SPH_C64(0xF096A5B4C3B2E187);
-
-
- 	for (int i = 0; i < 8; i ++) {
-		W[i] = (inpHash[i]);
+ 	for (int i = 0; i < 3; i ++) {
+		r[i] = (inpHash[i]);
 	}
 
-#define IN(x) W[x]
-
-	TIGER_ROUND_BODY(IN,r);
 
  	for (int i = 0; i < 8; i ++) {
 		W[i] = (inpHash[i+8]);
@@ -772,13 +766,24 @@ __host__ void tiger_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, 
 
 void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
-	uint64_t hash[8];
+	uint64_t hash[3];
+
+
+	hash[0] = SPH_C64(0x0123456789ABCDEF);
+	hash[1] = SPH_C64(0xFEDCBA9876543210);
+	hash[2] = SPH_C64(0xF096A5B4C3B2E187);
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
 
 	block[122] = 0x1;
 	((uint32_t*)block)[192/4 - 2] = 976;
+
+	sph_tiger_comp((sph_u64*)block, hash);
+
+	for(int i=0; i < 3; i++){
+		((uint64_t*)block)[i] = hash[i];
+	}
 
 	gpuErrchk(cudaMemcpyAsync( pctx->tiger_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 

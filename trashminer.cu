@@ -316,13 +316,22 @@ void hash_gpu(int throughput, CBlockHeader hdr){
 	tiger_scanhash(throughput,hdr.nNonce,&hdr,d_hash[5]);
 	ripemd_scanhash(throughput,hdr.nNonce,&hdr,d_hash[6]);
 
+#if 0
 	cpu_mul(0, throughput, 4, 8, d_hash[0], d_hash[1], d_prod[0]);
 	cpu_mul(0, throughput, 8, 12, d_hash[2], d_prod[0], d_prod[1]);
 	cpu_mul(0, throughput, 8, 20, d_hash[3], d_prod[1], d_prod[0]);
 	cpu_mul(0, throughput, 4, 28, d_hash[4], d_prod[0], d_prod[1]);
 	cpu_mul(0, throughput, 3, 32, d_hash[5], d_prod[1], d_prod[0]);
 	cpu_mul(0, throughput, 3, 35, d_hash[6], d_prod[0], d_prod[1]);
+#else
+	cpu_mul(0, throughput, 3, 3, d_hash[6], d_hash[5], d_prod[0]);
+	cpu_mul(0, throughput, 4, 6, d_hash[0], d_prod[0], d_prod[1]);
+	cpu_mul(0, throughput, 4, 10, d_hash[4], d_prod[1], d_prod[0]);
+	cpu_mul(0, throughput, 8, 14, d_hash[3], d_prod[0], d_prod[1]);
+	cpu_mul(0, throughput, 8, 22, d_hash[2], d_prod[1], d_prod[0]);
+	cpu_mul(0, throughput, 8, 30, d_hash[1], d_prod[0], d_prod[1]);
 
+#endif
 	sha256_fullhash(throughput,d_prod[1],d_hash[7]);
 
 #if 0

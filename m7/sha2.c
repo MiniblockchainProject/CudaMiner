@@ -605,7 +605,7 @@ static const sph_u32 K[64] = {
 /*
  * One round of SHA-224 / SHA-256. The data must be aligned for 32-bit access.
  */
-static void
+void
 sha2_round(const unsigned char *data, sph_u32 r[8])
 {
 #define SHA2_IN(x)   sph_dec32be_aligned(data + (4 * (x)))

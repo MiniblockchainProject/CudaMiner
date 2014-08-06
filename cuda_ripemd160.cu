@@ -48,7 +48,9 @@
 #include <memory.h>
 
 #include "uint256.h"
+extern "C"{
 #include "sph_ripemd.h"
+}
 
 #include "trashminer.h"
 
@@ -342,23 +344,14 @@ uint64_t h8[4];
 	uint32_t W[16]; 
         uint32_t r[5];
 
-#pragma unroll 16
 	uint64_t nonce = startNounce + thread * 0x100000000ULL;
-
-	for (int i = 0; i < 16; i ++) {
-		W[i] = (inpHash[i]);
-	}
-
-
-	r[0] = SPH_C32(0x67452301);
-	r[1] = SPH_C32(0xEFCDAB89);
-	r[2] = SPH_C32(0x98BADCFE);
-	r[3] = SPH_C32(0x10325476);
-	r[4] = SPH_C32(0xC3D2E1F0);
 
 #define IN(x) W[x]
 
-	RIPEMD160_ROUND_BODY(IN,r);
+	for (int i = 0; i < 5; i ++) {
+		r[i] = (inpHash[i]);
+	}
+
 
 #pragma unroll 16
 	for (int i = 0; i < 16; i ++) {
@@ -432,13 +425,24 @@ __host__ void ripemd_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 
 void ripemd_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
-	uint64_t hash[8];
+	uint32_t r[5];
+
+	r[0] = SPH_C32(0x67452301);
+	r[1] = SPH_C32(0xEFCDAB89);
+	r[2] = SPH_C32(0x98BADCFE);
+	r[3] = SPH_C32(0x10325476);
+	r[4] = SPH_C32(0xC3D2E1F0);
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
 
 	block[122] = 0x80;
 	((uint32_t*)block)[192/4 - 2] = 976;
+
+	sph_ripemd160_comp((uint32_t*)hdr, r);
+	for(int i=0; i < 5; i++){
+		((uint32_t*)block)[i] = r[i];
+	}
 
 	gpuErrchk(cudaMemcpyAsync( pctx->ripemd_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
