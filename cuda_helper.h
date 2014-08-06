@@ -1,6 +1,11 @@
 #ifndef CUDA_HELPER_H
 #define CUDA_HELPER_H
 
+#undef HI
+#undef LO
+#undef HIWORD
+#undef LOWORD
+
 static __device__ unsigned long long MAKE_ULONGLONG(uint32_t LO, uint32_t HI)
 {
 #if __CUDA_ARCH__ >= 130

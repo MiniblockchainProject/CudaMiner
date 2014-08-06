@@ -17,6 +17,9 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
+#ifdef _WIN32 || _WIN64
+#define WIN
+#endif
 #include <stdbool.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -25,7 +28,7 @@
 #include <jansson.h>
 #include <curl/curl.h>
 #include <time.h>
-#if defined(WIN32)
+#if WIN
 #include <winsock2.h>
 #include <mstcpip.h>
 #else
@@ -312,7 +315,7 @@ static int sockopt_keepalive_cb(void *userdata, curl_socket_t fd,
 	int tcp_keepidle = 50;
 	int tcp_keepintvl = 50;
 
-#ifndef WIN32
+#ifndef WIN
 	if (unlikely(setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
 		sizeof(keepalive))))
 		return 1;
@@ -764,7 +767,7 @@ void diff_to_target(uint32_t *target, double diff)
 	}
 }
 
-#ifdef WIN32
+#ifdef WIN
 #define socket_blocks() (WSAGetLastError() == WSAEWOULDBLOCK)
 #else
 #define socket_blocks() (errno == EAGAIN || errno == EWOULDBLOCK)

@@ -2,7 +2,6 @@
 #include "cpuminer-config.h"
 #include "miner.h"
 
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 

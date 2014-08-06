@@ -56,6 +56,7 @@
 #ifdef _WIN32 || _WIN64
 
 #include <time.h>
+#include <winsock2.h>
 extern "C"{
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 void usleep(int64_t waitTime);

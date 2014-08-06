@@ -3,7 +3,15 @@
 
 #include "cpuminer-config.h"
 
+#ifdef _WIN32 || _WIN64
+#ifndef false
+typedef int bool;
+#define false 0
+#define true 1
+#endif
+#else
 #include <stdbool.h>
+#endif
 #include <inttypes.h>
 #include <sys/time.h>
 #include <pthread.h>

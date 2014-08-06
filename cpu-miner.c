@@ -14,14 +14,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-#ifdef WIN32
+#ifdef _WIN32 || _WIN64
+#define WIN
 #include <windows.h>
 #else
+#include <stdbool.h>
 #include <errno.h>
 #include <signal.h>
 #include <sys/resource.h>
@@ -197,7 +198,7 @@ Options:\n\
 "\
   -S, --syslog          use system log for output messages\n"
 #endif
-#ifndef WIN32
+#ifndef WIN
 "\
   -B, --background      run the miner in the background\n"
 #endif
@@ -209,7 +210,7 @@ Options:\n\
 ";
 
 static char const short_options[] =
-#ifndef WIN32
+#ifndef WIN
 	"B"
 #endif
 #ifdef HAVE_SYSLOG_H
@@ -219,7 +220,7 @@ static char const short_options[] =
 
 static struct option const options[] = {
 	{ "algo", 1, NULL, 'a' },
-#ifndef WIN32
+#ifndef WIN
 	{ "background", 0, NULL, 'B' },
 #endif
 	{ "benchmark", 0, NULL, 1005 },
@@ -1887,7 +1888,7 @@ static void parse_cmdline(int argc, char *argv[])
 	}
 }
 
-#ifndef WIN32
+#ifndef WIN
 static void signal_handler(int sig)
 {
 	switch (sig) {
@@ -1948,7 +1949,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-#ifndef WIN32
+#ifndef WIN
 	if (opt_background) {
 		i = fork();
 		if (i < 0) exit(1);
@@ -1965,7 +1966,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-#if defined(WIN32)
+#if defined(WIN)
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	num_processors = sysinfo.dwNumberOfProcessors;
