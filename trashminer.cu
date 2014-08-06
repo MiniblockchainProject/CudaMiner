@@ -153,6 +153,7 @@ const signed char p_util_hexdigit[256] =
 
 const int throughput = 256*256*8;
 
+#ifdef DEBUGHASH
 void hash_cpu(CBlockHeader hdr){
 
 	sph_sha256_context       ctx_sha256;
@@ -247,6 +248,8 @@ void hash_cpu(CBlockHeader hdr){
 	printf("Final hash: %s\n", finalhash.GetHex().c_str());
 }
 
+#endif
+
 extern "C" {
 uint64_t cuda_scanhash(void* ctx, void* data, void* target);
 }
@@ -294,7 +297,9 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 		if((highword >> 32) < ((uint32_t*)&target)[7] || ((highword >> 32) == ((uint32_t*)&target)[7] && ((uint32_t)highword) <= ((uint32_t*)&target)[6])){
 			printf("Found a winner, %lX nonce %ld\n", highword, startNonce + i* 0x100000000ULL); 
 			hdr.nNonce = startNonce+i* 0x100000000ULL;
+#ifdef DEBUG_HASH
 			hash_cpu(hdr);
+#endif
 			return hdr.nNonce;
 		}		
 	}

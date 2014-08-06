@@ -13,7 +13,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <vector>
-#include <gmpxx.h>
 
 extern const signed char p_util_hexdigit[256]; // defined in util.cpp
 
@@ -821,22 +820,6 @@ inline const uint512 operator|(const uint512& a, const uint512& b) { return (bas
 inline const uint512 operator+(const uint512& a, const uint512& b) { return (base_uint512)a + (base_uint512)b; }
 inline const uint512 operator-(const uint512& a, const uint512& b) { return (base_uint512)a - (base_uint512)b; }
 	
-
-inline void mpz_set_uint256(mpz_t r, uint256& u)
-{
-    mpz_import(r, 32 / sizeof(unsigned long), -1, sizeof(unsigned long), -1, 0, &u);
-}
-
-inline void mpz_get_uint256(mpz_t r, uint256& u)
-{
-    u=0;
-    mpz_export(&u, 0, -1, sizeof(unsigned long), -1, 0, r);
-}
-
-inline void mpz_set_uint512(mpz_t r, uint512& u)
-{
-    mpz_import(r, 64 / sizeof(unsigned long), -1, sizeof(unsigned long), -1, 0, &u);
-}
 
 
 #endif

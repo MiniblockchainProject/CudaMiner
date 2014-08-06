@@ -2,7 +2,6 @@
 #include "cpuminer-config.h"
 #include "miner.h"
 
-#include <gmp.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,21 +13,6 @@
 #include <sph_whirlpool.h>
 #include <sph_ripemd.h>
 
-static void mpz_set_uint256(mpz_t r, uint8_t *u)
-{
-    mpz_import(r, 32 / sizeof(unsigned long), -1, sizeof(unsigned long), -1, 0, u);
-}
-
-static void mpz_get_uint256(mpz_t r, uint8_t *u)
-{
-    u=0;
-    mpz_export(u, 0, -1, sizeof(unsigned long), -1, 0, r);
-}
-
-static void mpz_set_uint512(mpz_t r, uint8_t *u)
-{
-    mpz_import(r, 64 / sizeof(unsigned long), -1, sizeof(unsigned long), -1, 0, u);
-}
 
 static void set_one_if_zero(uint8_t *hash512) {
     for (int i = 0; i < 32; i++) {
@@ -71,7 +55,6 @@ int scanhash_m7hash(int thr_id, void* cuda_ctx, uint32_t *pdata, const uint32_t 
     const uint32_t first_nonce = pdata[29];
     char data_str[245], hash_str[65], target_str[65];
     uint8_t *bdata = 0;
-    mpz_t bns[7];
     int rc = 0;
 
     memcpy(data, pdata, 122);

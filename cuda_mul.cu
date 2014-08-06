@@ -140,7 +140,7 @@ __global__ void gpu_mul(int threads, uint32_t ulegs, uint32_t vlegs, uint64_t *g
 __host__ void cpu_mul(int thr_id, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p)
 {
 
-	const int threadsperblock = 256; // Alignment mit mixtab Gr\F6sse. NICHT \C4NDERN
+	const int threadsperblock = 512; // Alignment mit mixtab Gr\F6sse. NICHT \C4NDERN
 
 	// berechne wie viele Thread Blocks wir brauchen
 	dim3 grid((threads + threadsperblock-1)/threadsperblock);
