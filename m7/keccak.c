@@ -1620,7 +1620,8 @@ void keccak_one(const void *buf, uint64_t state[])
 		kc->u.wide[17] = ~kc->u.wide[17]; \
 		kc->u.wide[20] = ~kc->u.wide[20]; \
 
-	for(int i=0; i < 25; i++){
+	int i;
+	for(i=0; i < 25; i++){
 		state[i] = kc->u.wide[i];
 	}
 }

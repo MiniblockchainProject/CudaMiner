@@ -53,13 +53,15 @@
 #include <map>
 
 
-#ifndef WIN32
-#include <unistd.h>
-#include <sys/time.h>
-#else
+#ifdef _WIN32 || _WIN64
+
 #include <time.h>
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 void usleep(int64_t waitTime);
+
+#else
+#include <unistd.h>
+#include <sys/time.h>
 #endif
 
 #include "uint256.h"

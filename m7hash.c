@@ -15,7 +15,8 @@
 
 
 static void set_one_if_zero(uint8_t *hash512) {
-    for (int i = 0; i < 32; i++) {
+    int i;
+    for ( i = 0; i < 32; i++) {
         if (hash512[i] != 0) {
             return;
         }
