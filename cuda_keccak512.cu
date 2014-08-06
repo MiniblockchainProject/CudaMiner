@@ -182,13 +182,15 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
 
 
 // Setup-Funktionen
-__host__ void keccak512_cpu_init(int thr_id, int threads)
+__host__ void keccak512_cpu_init(int thr_id, int threads, ctx* pctx)
 {
     // Kopiere die Hash-Tabellen in den GPU-Speicher
     cudaMemcpyToSymbol( c_keccak_round_constants,
                         host_keccak_round_constants,
                         sizeof(host_keccak_round_constants),
                         0, cudaMemcpyHostToDevice);
+
+    gpuErrchk(cudaMalloc( (void**)&pctx->keccak_dblock, 144 )); 
 }
 
 __host__ void keccak512_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, uint32_t *d_block, uint64_t *d_hash)
@@ -204,16 +206,14 @@ __host__ void keccak512_cpu_hash_242(int thr_id, int threads, uint64_t startNoun
 
     keccak512_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, d_block, (uint64_t*)d_hash);
 
-    cudaStreamSynchronize(0);
+ //   cudaStreamSynchronize(0);
 //    MyStreamSynchronize(NULL, order, thr_id);
 }
 
 
-void keccak512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash){
+void keccak512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[144];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -221,11 +221,8 @@ void keccak512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr,
 	block[122] = 0x1;
 	((uint64_t*)block)[144/8 - 1] = 0x8000000000000000UL;
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->keccak_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	keccak512_cpu_init(0,throughput);
-	keccak512_cpu_hash_242(0,throughput,startNounce,dblock,d_hash);
-
-	cudaFree(dblock);
+	keccak512_cpu_hash_242(0,throughput,startNounce,pctx->keccak_dblock,d_hash);
 }
 

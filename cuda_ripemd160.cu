@@ -405,9 +405,10 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
 }
 
 
-void ripemd_cpu_init(int thr_id, int threads)
+void ripemd_cpu_init(int thr_id, int threads, ctx* pctx)
 {
-	
+	gpuErrchk(cudaMalloc( (void**)&pctx->ripemd_dblock,192 )); 
+
 }
 
 
@@ -425,15 +426,13 @@ __host__ void ripemd_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 	size_t shared_size =0;
 	ripemd_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, d_block, d_hash);
 
-	cudaStreamSynchronize(0);
+//	cudaStreamSynchronize(0);
 	//MyStreamSynchronize(NULL, order, thr_id);
 }
 
-void ripemd_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash){
+void ripemd_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -441,11 +440,9 @@ void ripemd_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uin
 	block[122] = 0x80;
 	((uint32_t*)block)[192/4 - 2] = 976;
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->ripemd_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	ripemd_cpu_init(0,throughput);
-	ripemd_cpu_hash_242(0,throughput,startNonce,dblock,d_hash);
+	ripemd_cpu_hash_242(0,throughput,startNonce,pctx->ripemd_dblock,d_hash);
 
-	cudaFree(dblock);
 }
 

@@ -3,6 +3,23 @@
 
 uint64_t swap_uint64( uint64_t val );
 
+//Storage for result of sha256
+struct ctx {
+	uint64_t *d_hash[8];
+	uint64_t *d_prod[2];
+	uint64_t *hash[8];
+	uint64_t *prod[2];
+	cudaStream_t stream;
+
+	uint32_t* sha256_dblock;
+	uint32_t* sha512_dblock;
+	uint32_t* keccak_dblock;
+	uint32_t* whirlpool_dblock;
+	uint32_t* haval_dblock;
+	uint32_t* tiger_dblock;
+	uint32_t* ripemd_dblock;
+};
+
 #pragma pack(push,1)
 class CBlockHeader
 {

@@ -283,13 +283,13 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
    }
 }
 
-void sha512_cpu_init(int thr_id, int threads)
+void sha512_cpu_init(int thr_id, int threads, ctx* pctx)
 {
 
     cudaMemcpyToSymbol(K_512,K512,80*sizeof(uint64_t),0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(H_512,H512,sizeof(H512),0, cudaMemcpyHostToDevice);
 	
-	
+    gpuErrchk(cudaMalloc( (void**)&pctx->sha512_dblock, 256 )); 
 }
 
 
@@ -307,15 +307,13 @@ __host__ void sha512_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 	size_t shared_size =0;
 	sha512_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, dblock, d_hash);
 
-        cudaStreamSynchronize(0);
+      //  cudaStreamSynchronize(0);
 	//MyStreamSynchronize(NULL, order, thr_id);
 }
 
-void sha512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash){
+void sha512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[256];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -323,12 +321,10 @@ void sha512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, ui
 	block[122] = 0x80;
 	((uint64_t*)block)[256/8 - 1] = swap_uint64(976);
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->sha512_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	sha512_cpu_init(0,throughput);
-	sha512_cpu_hash_242(0,throughput,startNounce,dblock,d_hash);
+	sha512_cpu_hash_242(0,throughput,startNounce,pctx->sha512_dblock,d_hash);
 
-	cudaFree(dblock);
 }
 
 

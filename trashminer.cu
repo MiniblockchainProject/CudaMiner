@@ -49,6 +49,10 @@
 #include <memory.h>
 #include <gmp.h>
 
+#ifndef WIN32
+#include <unistd.h>
+#endif
+
 #include "uint256.h"
 extern "C" {
 #include "sph_whirlpool.h"
@@ -61,21 +65,21 @@ extern "C" {
 #include "cuda_helper.h"
 #include "trashminer.h"
 
-extern void whirlpool512_cpu_init(int thr_id, int threads, int flag);
-extern void sha256_cpu_init(int thr_id, int threads);
-extern void sha512_cpu_init(int thr_id, int threads);
-extern void haval256_cpu_init(int thr_id, int threads);
-extern void tiger_cpu_init(int thr_id, int threads);
-extern void ripemd_cpu_init(int thr_id, int threads);
-extern void keccak512_cpu_init(int thr_id, int threads);
+extern void whirlpool512_cpu_init(int thr_id, int threads, int flag, ctx* pctx);
+extern void sha256_cpu_init(int thr_id, int threads, ctx* pctx);
+extern void sha512_cpu_init(int thr_id, int threads, ctx* pctx);
+extern void haval256_cpu_init(int thr_id, int threads, ctx* pctx);
+extern void tiger_cpu_init(int thr_id, int threads, ctx* pctx);
+extern void ripemd_cpu_init(int thr_id, int threads, ctx* pctx);
+extern void keccak512_cpu_init(int thr_id, int threads, ctx* pctx);
 
-extern void sha256_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
-extern void sha512_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
-extern void haval256_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
-extern void tiger_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
-extern void ripemd_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
-extern void keccak512_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
-extern void whirlpool_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash);
+extern void sha256_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
+extern void sha512_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
+extern void haval256_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
+extern void tiger_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
+extern void ripemd_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
+extern void keccak512_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
+extern void whirlpool_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
 extern void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash);
 
 extern void cpu_mul(int thr_id, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
@@ -96,14 +100,6 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
       if (abort) exit(code);
    }
 }
-
-	//Storage for result of sha256
-struct ctx {
-	uint64_t *d_hash[8];
-	uint64_t *d_prod[2];
-	uint64_t *hash[8];
-	uint64_t *prod[2];
-};
 
 const signed char p_util_hexdigit[256] =
 { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
@@ -233,15 +229,15 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	size_t hashSz =  8 * sizeof(uint64_t) * throughput;
 	size_t prodSz = 38 * sizeof(uint64_t) * throughput;
 
-	printf("Scanning block %ld %lX %s\n", hdr.nHeight, hdr.nNonce, target.GetHex().c_str());
+	//printf("Scanning block %ld %lX %s\n", hdr.nHeight, hdr.nNonce, target.GetHex().c_str());
 
-	sha256_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[0]);
-	sha512_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[1]);
-	keccak512_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[2]);
-	whirlpool_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[3]);
-	haval256_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[4]);
-	tiger_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[5]);
-	ripemd_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[6]);
+	sha256_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[0], pctx);
+	sha512_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[1], pctx);
+	keccak512_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[2], pctx);
+	whirlpool_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[3], pctx);
+	haval256_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[4], pctx);
+	tiger_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[5], pctx);
+	ripemd_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[6], pctx);
 
 	cpu_mul(0, throughput, 4, 8, pctx->d_hash[0], pctx->d_hash[1], pctx->d_prod[0]);
 	cpu_mul(0, throughput, 8, 12, pctx->d_hash[2], pctx->d_prod[0], pctx->d_prod[1]);
@@ -255,8 +251,17 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	uint64_t startNonce = hdr.nNonce;
 
 	//Check for any winners
+
+	cudaMemcpyAsync( pctx->hash[7], pctx->d_hash[7], hashSz/2, cudaMemcpyDeviceToHost, pctx->stream ); 
+
+	while(cudaStreamQuery(pctx->stream) == cudaErrorNotReady){
+#ifdef WIN32 //Need this to work, but it doesn't on any platform
+//		Sleep(1);
+#else
+		usleep(100);
+#endif
+	}
 	
-	cudaMemcpy( pctx->hash[7], pctx->d_hash[7], hashSz, cudaMemcpyDeviceToHost ); 
 	for(int i=0; i < throughput; i++){
 		//Only really need to check high word
 		uint64_t highword = pctx->hash[7][3*throughput+i];
@@ -270,7 +275,7 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 
 
 
-	printf("Done scan\n");
+	//printf("Done scan\n");
 	return 0;
 } 
 
@@ -371,13 +376,15 @@ void* cuda_init(int id){
 
 	ctx *pctx = new ctx;
 
-	whirlpool512_cpu_init(0,throughput,0);
-	sha256_cpu_init(0,throughput);
-	sha512_cpu_init(0,throughput);
-	haval256_cpu_init(0,throughput);
-	tiger_cpu_init(0,throughput);
-	ripemd_cpu_init(0,throughput);
-	keccak512_cpu_init(0,throughput);
+	cudaStreamCreate(&pctx->stream);
+
+	whirlpool512_cpu_init(0,throughput,0, pctx);
+	sha256_cpu_init(0,throughput,pctx);
+	sha512_cpu_init(0,throughput, pctx);
+	haval256_cpu_init(0,throughput,pctx);
+	tiger_cpu_init(0,throughput, pctx);
+	ripemd_cpu_init(0,throughput, pctx);
+	keccak512_cpu_init(0,throughput,pctx);
 
 	size_t hashSz =  8 * sizeof(uint64_t) * throughput;
 	size_t prodSz = 38 * sizeof(uint64_t) * throughput;

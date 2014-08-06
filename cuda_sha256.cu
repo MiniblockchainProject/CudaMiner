@@ -429,11 +429,13 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
    }
 }
 
-void sha256_cpu_init(int thr_id, int threads)
+void sha256_cpu_init(int thr_id, int threads, ctx* pctx)
 {
 
     gpuErrchk(cudaMemcpyToSymbol(K_256,K256,sizeof(K256),0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(H_256,H256,sizeof(H256),0, cudaMemcpyHostToDevice));	
+
+    gpuErrchk(cudaMalloc( (void**)&pctx->sha256_dblock, 192 )); 
 	
 }
 
@@ -452,7 +454,7 @@ __host__ void sha256_cpu_fullhash(int thr_id, int threads, uint64_t* data, uint6
   	sha256_gpu_full<<<grid, block, shared_size>>>(threads, data, d_hash) ;
 
 
-	cudaStreamSynchronize(0);
+//	cudaStreamSynchronize(0);
 //	MyStreamSynchronize(NULL, order, thr_id);
 }
 
@@ -471,15 +473,13 @@ __host__ void sha256_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
   sha256_gpu_hash_32<<<grid, block, shared_size>>>(threads, startNounce, dblock, d_hash) ;
 
 
-	cudaStreamSynchronize(0);
+//	cudaStreamSynchronize(0);
 //	MyStreamSynchronize(NULL, order, thr_id);
 }
 
-void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash){
+void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -487,12 +487,9 @@ void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, ui
 	block[122] = 0x80;
 	((uint32_t*)block)[192/4 - 1] = SWAP(976);
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->sha256_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	sha256_cpu_init(0,throughput);
-	sha256_cpu_hash_242(0,throughput,startNounce,dblock,d_hash);
-
-	cudaFree(dblock);
+	sha256_cpu_hash_242(0,throughput,startNounce,pctx->sha256_dblock,d_hash);
 }
 
 void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash){

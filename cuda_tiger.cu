@@ -739,13 +739,15 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
 }
 
 
-void tiger_cpu_init(int thr_id, int threads)
+void tiger_cpu_init(int thr_id, int threads, ctx* pctx)
 {
 
     cudaMemcpyToSymbol(T1,T_1,256*sizeof(uint64_t),0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(T2,T_2,256*sizeof(uint64_t),0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(T3,T_3,256*sizeof(uint64_t),0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(T4,T_4,256*sizeof(uint64_t),0, cudaMemcpyHostToDevice);
+
+    gpuErrchk(cudaMalloc( (void**)&pctx->tiger_dblock, 192)); 
 	
 }
 
@@ -764,15 +766,13 @@ __host__ void tiger_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, 
 	size_t shared_size =0;
 	tiger_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, (uint64_t*)d_block, d_hash);
 
-	cudaStreamSynchronize(0);
+//	cudaStreamSynchronize(0);
 //	MyStreamSynchronize(NULL, order, thr_id);
 }
 
-void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash){
+void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -780,11 +780,8 @@ void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint
 	block[122] = 0x1;
 	((uint32_t*)block)[192/4 - 2] = 976;
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->tiger_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	tiger_cpu_init(0,throughput);
-	tiger_cpu_hash_242(0,throughput,startNonce,dblock,d_hash);
-
-	cudaFree(dblock);
+	tiger_cpu_hash_242(0,throughput,startNonce,pctx->tiger_dblock,d_hash);
 }
 

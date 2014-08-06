@@ -1429,7 +1429,7 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
 	{ cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<unsigned int>(); \
 	  cudaBindTexture(NULL, &texname, texmem, &channelDesc, texsize ); }
 
-void whirlpool512_cpu_init(int thr_id, int threads, int flag)
+void whirlpool512_cpu_init(int thr_id, int threads, int flag, ctx* pctx)
 {
 
 	texDef(mixTob0Tox, mixtob_T0m, plain_T0, sizeof(uint64_t)*256);
@@ -1443,6 +1443,8 @@ void whirlpool512_cpu_init(int thr_id, int threads, int flag)
 
 
 	cudaMemcpyToSymbol(InitVector_RC,plain_RC,sizeof(plain_RC),0, cudaMemcpyHostToDevice);
+
+ 	gpuErrchk(cudaMalloc( (void**)&pctx->whirlpool_dblock, 192 )); 
 
 
 gpuErrchk( cudaPeekAtLastError() );
@@ -1474,11 +1476,9 @@ gpuErrchk( cudaStreamSynchronize(0) );
 
 }
 
-void whirlpool_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash){
+void whirlpool_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[192];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -1488,11 +1488,9 @@ void whirlpool_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, 
 
 	//memcpy(block,&block[128],128);
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->whirlpool_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	whirlpool512_cpu_init(0,throughput,1);
-	whirlpool512_cpu_hash_242(0,throughput,startNonce,dblock,d_hash);
+	whirlpool512_cpu_hash_242(0,throughput,startNonce,pctx->whirlpool_dblock,d_hash);
 
-	cudaFree(dblock);
 }
 

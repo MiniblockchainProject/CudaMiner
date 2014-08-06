@@ -460,12 +460,13 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
 }
 
 
-void haval256_cpu_init(int thr_id, int threads)
+void haval256_cpu_init(int thr_id, int threads, ctx* pctx)
 {
     
 	
 	cudaMemcpyToSymbol(initVector,c_initVector,sizeof(c_initVector),0, cudaMemcpyHostToDevice);
-	
+	gpuErrchk(cudaMalloc( (void**)&pctx->haval_dblock, 256 )); 
+
 }
 
 
@@ -482,15 +483,13 @@ __host__ void haval256_cpu_hash_242(int thr_id, int threads, uint64_t startNounc
 
 	haval256_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, d_block, d_hash);
 
-	cudaStreamSynchronize(0);
+//	cudaStreamSynchronize(0);
 //	MyStreamSynchronize(NULL, order, thr_id);
 }
 
-void haval256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash){
+void haval256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
 	char block[256];
 	uint64_t hash[8];
-	uint32_t* dblock;
- 	gpuErrchk(cudaMalloc( (void**)&dblock, sizeof(block) )); 
 
 	memset(block,0,sizeof(block));
 	memcpy(block,hdr,sizeof(*hdr));
@@ -499,12 +498,9 @@ void haval256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, 
 	((uint32_t*)block)[256/4 - 2] = 976;
 	((uint32_t*)block)[256/4 - 3] = 0x40290000;
 
-	gpuErrchk(cudaMemcpy( dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpy( pctx->haval_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
 
-	haval256_cpu_init(0,throughput);
-	haval256_cpu_hash_242(0,throughput,startNounce,dblock,d_hash);
-
-	cudaFree(dblock);
+	haval256_cpu_hash_242(0,throughput,startNounce,pctx->haval_dblock,d_hash);
 }
 
 
