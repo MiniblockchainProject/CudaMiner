@@ -152,7 +152,7 @@ __host__ void cpu_mul(int thr_id, int threads, uint32_t alegs, uint32_t blegs, u
   	gpu_mul<<<grid, block, shared_size>>>(threads, alegs, blegs, g_a, g_b, g_p) ;
 
 
-	cudaStreamSynchronize(0);
+//	cudaStreamSynchronize(0);
 //	MyStreamSynchronize(NULL, order, thr_id);
 }
 

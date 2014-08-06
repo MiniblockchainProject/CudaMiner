@@ -455,7 +455,7 @@ __host__ void sha256_cpu_fullhash(int thr_id, int threads, uint64_t* data, uint6
 
 
 //	cudaStreamSynchronize(0);
-//	MyStreamSynchronize(NULL, order, thr_id);
+	MyStreamSynchronize(NULL, 1, thr_id);
 }
 
 __host__ void sha256_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, uint32_t* dblock, uint64_t *d_hash)
@@ -474,7 +474,7 @@ __host__ void sha256_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 
 
 //	cudaStreamSynchronize(0);
-//	MyStreamSynchronize(NULL, order, thr_id);
+	MyStreamSynchronize(NULL, 1, thr_id);
 }
 
 void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
@@ -487,9 +487,9 @@ void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, ui
 	block[122] = 0x80;
 	((uint32_t*)block)[192/4 - 1] = SWAP(976);
 
-	gpuErrchk(cudaMemcpy( pctx->sha256_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->sha256_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
-	sha256_cpu_hash_242(0,throughput,startNounce,pctx->sha256_dblock,d_hash);
+	sha256_cpu_hash_242(pctx->thr_id, throughput,startNounce,pctx->sha256_dblock,d_hash);
 }
 
 void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash){

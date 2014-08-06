@@ -767,7 +767,7 @@ __host__ void tiger_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, 
 	tiger_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, (uint64_t*)d_block, d_hash);
 
 //	cudaStreamSynchronize(0);
-//	MyStreamSynchronize(NULL, order, thr_id);
+	MyStreamSynchronize(NULL, 6, thr_id);
 }
 
 void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
@@ -780,8 +780,8 @@ void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint
 	block[122] = 0x1;
 	((uint32_t*)block)[192/4 - 2] = 976;
 
-	gpuErrchk(cudaMemcpy( pctx->tiger_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->tiger_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
-	tiger_cpu_hash_242(0,throughput,startNonce,pctx->tiger_dblock,d_hash);
+	tiger_cpu_hash_242(pctx->thr_id,throughput,startNonce,pctx->tiger_dblock,d_hash);
 }
 

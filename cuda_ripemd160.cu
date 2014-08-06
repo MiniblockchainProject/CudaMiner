@@ -427,7 +427,7 @@ __host__ void ripemd_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 	ripemd_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, d_block, d_hash);
 
 //	cudaStreamSynchronize(0);
-	//MyStreamSynchronize(NULL, order, thr_id);
+	MyStreamSynchronize(NULL, 7, thr_id);
 }
 
 void ripemd_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
@@ -440,9 +440,9 @@ void ripemd_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uin
 	block[122] = 0x80;
 	((uint32_t*)block)[192/4 - 2] = 976;
 
-	gpuErrchk(cudaMemcpy( pctx->ripemd_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->ripemd_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
-	ripemd_cpu_hash_242(0,throughput,startNonce,pctx->ripemd_dblock,d_hash);
+	ripemd_cpu_hash_242(pctx->thr_id,throughput,startNonce,pctx->ripemd_dblock,d_hash);
 
 }
 

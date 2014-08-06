@@ -484,7 +484,7 @@ __host__ void haval256_cpu_hash_242(int thr_id, int threads, uint64_t startNounc
 	haval256_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, d_block, d_hash);
 
 //	cudaStreamSynchronize(0);
-//	MyStreamSynchronize(NULL, order, thr_id);
+	MyStreamSynchronize(NULL, 5, thr_id);
 }
 
 void haval256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
@@ -498,9 +498,9 @@ void haval256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, 
 	((uint32_t*)block)[256/4 - 2] = 976;
 	((uint32_t*)block)[256/4 - 3] = 0x40290000;
 
-	gpuErrchk(cudaMemcpy( pctx->haval_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->haval_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
-	haval256_cpu_hash_242(0,throughput,startNounce,pctx->haval_dblock,d_hash);
+	haval256_cpu_hash_242(pctx->thr_id,throughput,startNounce,pctx->haval_dblock,d_hash);
 }
 
 

@@ -1467,10 +1467,11 @@ __host__ uint32_t whirlpool512_cpu_hash_242(int thr_id, int threads, uint64_t st
 	whirlpool512_gpu_hash_242<<<grid, block>>>(threads, startNounce, d_block, (uint64_t*)d_hash);
 
 
-gpuErrchk( cudaPeekAtLastError() );
-gpuErrchk( cudaStreamSynchronize(0) );
+	//gpuErrchk( cudaStreamSynchronize(0) );
 
 	//cudaStreamSynchronize(0);
+
+	MyStreamSynchronize(NULL, 4, thr_id);
 
 	return 0;
 
@@ -1488,9 +1489,9 @@ void whirlpool_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, 
 
 	//memcpy(block,&block[128],128);
 
-	gpuErrchk(cudaMemcpy( pctx->whirlpool_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->whirlpool_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
-	whirlpool512_cpu_hash_242(0,throughput,startNonce,pctx->whirlpool_dblock,d_hash);
+	whirlpool512_cpu_hash_242(pctx->thr_id,throughput,startNonce,pctx->whirlpool_dblock,d_hash);
 
 }
 

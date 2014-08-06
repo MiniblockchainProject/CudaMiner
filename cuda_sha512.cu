@@ -308,7 +308,7 @@ __host__ void sha512_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 	sha512_gpu_hash_242<<<grid, block, shared_size>>>(threads, startNounce, dblock, d_hash);
 
       //  cudaStreamSynchronize(0);
-	//MyStreamSynchronize(NULL, order, thr_id);
+	MyStreamSynchronize(NULL, 2, thr_id);
 }
 
 void sha512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, uint64_t *d_hash, ctx* pctx){
@@ -321,9 +321,9 @@ void sha512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, ui
 	block[122] = 0x80;
 	((uint64_t*)block)[256/8 - 1] = swap_uint64(976);
 
-	gpuErrchk(cudaMemcpy( pctx->sha512_dblock, block, sizeof(block), cudaMemcpyHostToDevice )); 
+	gpuErrchk(cudaMemcpyAsync( pctx->sha512_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
-	sha512_cpu_hash_242(0,throughput,startNounce,pctx->sha512_dblock,d_hash);
+	sha512_cpu_hash_242(pctx->thr_id,throughput,startNounce,pctx->sha512_dblock,d_hash);
 
 }
 

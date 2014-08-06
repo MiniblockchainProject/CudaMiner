@@ -48,6 +48,8 @@
 #include <stdint.h>
 #include <memory.h>
 #include <gmp.h>
+#include <map>
+#include <sys/time.h>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -83,6 +85,36 @@ extern void whirlpool_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr
 extern void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash);
 
 extern void cpu_mul(int thr_id, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
+
+// Zeitsynchronisations-Routine von cudaminer mit CPU sleep
+typedef struct { double value[8]; } tsumarray;
+cudaError_t MyStreamSynchronize(cudaStream_t stream, int situation, int thr_id)
+{
+    cudaError_t result = cudaSuccess;
+    if (situation >= 0)
+    {   
+        static std::map<int, tsumarray> tsum;
+
+        double a = 0.95, b = 0.05;
+        if (tsum.find(situation) == tsum.end()) { a = 0.5; b = 0.5; } // faster initial convergence
+
+        double tsync = 0.0;
+        double tsleep = 0.95 * tsum[situation].value[thr_id];
+        if (cudaStreamQuery(stream) == cudaErrorNotReady)
+        {
+            usleep((useconds_t)(1e6*tsleep));
+            struct timeval tv_start, tv_end;
+            gettimeofday(&tv_start, NULL);
+            result = cudaStreamSynchronize(stream);
+            gettimeofday(&tv_end, NULL);
+            tsync = 1e-6 * (tv_end.tv_usec-tv_start.tv_usec) + (tv_end.tv_sec-tv_start.tv_sec);
+        }
+        if (tsync >= 0) tsum[situation].value[thr_id] = a * tsum[situation].value[thr_id] + b * (tsleep+tsync);
+    }
+    else
+        result = cudaStreamSynchronize(stream);
+    return result;
+}
 
 uint64_t swap_uint64( uint64_t val )
 {
@@ -252,15 +284,9 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 
 	//Check for any winners
 
-	cudaMemcpyAsync( pctx->hash[7], pctx->d_hash[7], hashSz/2, cudaMemcpyDeviceToHost, pctx->stream ); 
+	cudaMemcpyAsync( pctx->hash[7], pctx->d_hash[7], hashSz/2, cudaMemcpyDeviceToHost, 0 ); 
 
-	while(cudaStreamQuery(pctx->stream) == cudaErrorNotReady){
-#ifdef WIN32 //Need this to work, but it doesn't on any platform
-//		Sleep(1);
-#else
-		usleep(100);
-#endif
-	}
+	MyStreamSynchronize(0,8,pctx->thr_id);
 	
 	for(int i=0; i < throughput; i++){
 		//Only really need to check high word
@@ -375,6 +401,7 @@ void* cuda_init(int id){
 	gpuErrchk(cudaSetDevice(id));
 
 	ctx *pctx = new ctx;
+	pctx->thr_id = 0;
 
 	cudaStreamCreate(&pctx->stream);
 

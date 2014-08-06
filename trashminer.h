@@ -3,6 +3,8 @@
 
 uint64_t swap_uint64( uint64_t val );
 
+cudaError_t MyStreamSynchronize(cudaStream_t stream, int situation, int thr_id);
+
 //Storage for result of sha256
 struct ctx {
 	uint64_t *d_hash[8];
@@ -18,6 +20,8 @@ struct ctx {
 	uint32_t* haval_dblock;
 	uint32_t* tiger_dblock;
 	uint32_t* ripemd_dblock;
+
+	int thr_id;
 };
 
 #pragma pack(push,1)
