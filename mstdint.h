@@ -30,6 +30,11 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef _WIN32 || _WIN64
+#include <stdint.h>
+#else
+
+
 #ifndef _MSC_VER // [
 #error "Use this header only with Microsoft Visual C++ compilers!"
 #endif // _MSC_VER ]
@@ -41,7 +46,7 @@
 #pragma once
 #endif
 
-#if _MSC_VER >= 1600 // [
+#if _MSC_VER >= 2000 // [
 #include <stdint.h>
 #else // ] _MSC_VER >= 1600 [
 
@@ -257,3 +262,4 @@ typedef uint64_t  uintmax_t;
 #endif // _MSC_VER >= 1600 ]
 
 #endif // _MSC_STDINT_H_ ]
+#endif

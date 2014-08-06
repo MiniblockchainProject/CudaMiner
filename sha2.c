@@ -12,7 +12,7 @@
 #include "miner.h"
 
 #include <string.h>
-#include <inttypes.h>
+#include "minttypes.h"
 
 #if defined(USE_ASM) && defined(__arm__) && defined(__APCS_32__)
 #define EXTERN_SHA256

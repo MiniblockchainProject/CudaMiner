@@ -14,14 +14,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <time.h>
+#include "minttypes.h"
 #ifdef _WIN32 || _WIN64
 #define WIN
 #include <windows.h>
+#include <time.h>
 #else
+#include <unistd.h>
+#include <sys/time.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <signal.h>

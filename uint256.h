@@ -7,7 +7,7 @@
 #ifndef BITCOIN_UINT256_H
 #define BITCOIN_UINT256_H
 
-#include <stdint.h>
+#include "mstdint.h"
 #include <stdio.h>
 #include <string>
 #include <string.h>

@@ -21,10 +21,9 @@
 #define WIN
 #endif
 #include <stdbool.h>
-#include <inttypes.h>
+#include "minttypes.h"
 #include <limits.h>
 #include <errno.h>
-#include <unistd.h>
 #include <jansson.h>
 #include <curl/curl.h>
 #include <time.h>
@@ -32,6 +31,7 @@
 #include <winsock2.h>
 #include <mstcpip.h>
 #else
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>

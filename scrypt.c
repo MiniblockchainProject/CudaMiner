@@ -32,7 +32,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
+#include "minttypes.h"
 
 static const uint32_t keypad[12] = {
 	0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x00000280

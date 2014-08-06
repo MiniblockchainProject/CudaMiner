@@ -12,7 +12,7 @@ typedef int bool;
 #else
 #include <stdbool.h>
 #endif
-#include <inttypes.h>
+#include "minttypes.h"
 #include <sys/time.h>
 #include <pthread.h>
 #include <jansson.h>

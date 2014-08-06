@@ -30,6 +30,10 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef _WIN32 || _WIN64
+#include <inttypes.h>
+#else
+
 #ifndef _MSC_VER // [
 #error "Use this header only with Microsoft Visual C++ compilers!"
 #endif // _MSC_VER ]
@@ -41,7 +45,7 @@
 #pragma once
 #endif
 
-#include "stdint.h"
+#include "mstdint.h"
 
 // 7.8 Format conversion of integer types
 
@@ -304,4 +308,4 @@ imaxdiv_t __cdecl imaxdiv(intmax_t numer, intmax_t denom)
 
 
 #endif // _MSC_INTTYPES_H_ ]
-
+#endif
