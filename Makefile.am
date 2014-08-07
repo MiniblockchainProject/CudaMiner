@@ -17,7 +17,7 @@ bin_PROGRAMS	= minerd
 dist_man_MANS	= minerd.1
 
 minerd_SOURCES	= elist.h miner.h compat.h \
-		  cpu-miner.c util.c \
+		  cpu-miner.cpp util.c \
 		  sha2.c scrypt.c m7hash.c \
 		  trashminer.cu cuda_mul.cu \
 		  cuda_sha256.cu cuda_sha512.cu \

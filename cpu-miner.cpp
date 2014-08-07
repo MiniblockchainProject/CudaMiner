@@ -37,8 +37,11 @@
 #endif
 #include <jansson.h>
 #include <curl/curl.h>
+
+extern "C" {
 #include "compat.h"
 #include "miner.h"
+}
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
@@ -290,7 +293,7 @@ static void work_copy(struct work *dest, const struct work *src)
 	if (src->job_id)
 		dest->job_id = strdup(src->job_id);
 	if (src->xnonce2) {
-		dest->xnonce2 = malloc(src->xnonce2_len);
+		dest->xnonce2 = (unsigned char*)malloc(src->xnonce2_len);
 		memcpy(dest->xnonce2, src->xnonce2, src->xnonce2_len);
 	}
 }
@@ -311,7 +314,7 @@ static bool jobj_binary(const json_t *obj, const char *key,
 		applog(LOG_ERR, "JSON key '%s' is not a string", key);
 		return false;
 	}
-	if (!hex2bin(buf, hexstr, buflen))
+	if (!hex2bin((unsigned char*)buf, hexstr, buflen))
 		return false;
 
 	return true;
@@ -442,7 +445,7 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 	if (tmp) {
 		const char *cbtx_hex = json_string_value(json_object_get(tmp, "data"));
 		cbtx_size = cbtx_hex ? strlen(cbtx_hex) / 2 : 0;
-		cbtx = malloc(cbtx_size + 100);
+		cbtx = (unsigned char*)malloc(cbtx_size + 100);
 		if (cbtx_size < 60 || !hex2bin(cbtx, cbtx_hex, cbtx_size)) {
 			applog(LOG_ERR, "JSON invalid coinbasetxn");
 			goto out;
@@ -463,7 +466,7 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 			goto out;
 		}
 		cbvalue = json_is_integer(tmp) ? json_integer_value(tmp) : json_number_value(tmp);
-		cbtx = malloc(256);
+		cbtx = (unsigned char*)malloc(256);
 		le32enc((uint32_t *)cbtx, 1); /* version */
 		cbtx[4] = 1; /* in-counter */
 		memset(cbtx+5, 0x00, 32); /* prev txout hash */
@@ -534,18 +537,18 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 	}
 
 	n = varint_encode(txc_vi, 1 + tx_count);
-	work->txs = malloc(2 * (n + cbtx_size + tx_size) + 1);
+	work->txs = (char*)malloc(2 * (n + cbtx_size + tx_size) + 1);
 	bin2hex(work->txs, txc_vi, n);
 	bin2hex(work->txs + 2*n, cbtx, cbtx_size);
 
 	/* generate merkle root */
-	merkle_tree = malloc(32 * ((1 + tx_count + 1) & ~1));
+	merkle_tree = new unsigned char [((1 + tx_count + 1) & ~1)][32];
 	sha256d(merkle_tree[0], cbtx, cbtx_size);
 	for (i = 0; i < tx_count; i++) {
 		tmp = json_array_get(txa, i);
 		const char *tx_hex = json_string_value(json_object_get(tmp, "data"));
 		const int tx_size = tx_hex ? strlen(tx_hex) / 2 : 0;
-		unsigned char *tx = malloc(tx_size);
+		unsigned char *tx = (unsigned char*)malloc(tx_size);
 		if (!tx_hex || !hex2bin(tx, tx_hex, tx_size)) {
 			applog(LOG_ERR, "JSON invalid transactions");
 			free(tx);
@@ -612,7 +615,7 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 
 out:
 	free(cbtx);
-	free(merkle_tree);
+	delete [](merkle_tree);
 	return rc;
 }
 
@@ -709,13 +712,13 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 			json_object_set_new(val, "workid", json_string(work->workid));
 			params = json_dumps(val, 0);
 			json_decref(val);
-			req = malloc(128 + 2*80 + strlen(work->txs) + strlen(params));
+			req = (char*)malloc(128 + 2*80 + strlen(work->txs) + strlen(params));
 			sprintf(req,
 				"{\"method\": \"submitblock\", \"params\": [\"%s%s\", %s], \"id\":1}\r\n",
 				data_str, work->txs, params);
 			free(params);
 		} else {
-			req = malloc(128 + 2*80 + strlen(work->txs));
+			req = (char*)malloc(128 + 2*80 + strlen(work->txs));
 			sprintf(req,
 				"{\"method\": \"submitblock\", \"params\": [\"%s%s\"], \"id\":1}\r\n",
 				data_str, work->txs);
@@ -874,7 +877,7 @@ static bool workio_get_work(struct workio_cmd *wc, CURL *curl)
 	struct work *ret_work;
 	int failures = 0;
 
-	ret_work = calloc(1, sizeof(*ret_work));
+	ret_work = (struct work*)calloc(1, sizeof(*ret_work));
 	if (!ret_work)
 		return false;
 
@@ -921,7 +924,7 @@ static bool workio_submit_work(struct workio_cmd *wc, CURL *curl)
 
 static void *workio_thread(void *userdata)
 {
-	struct thr_info *mythr = userdata;
+	struct thr_info *mythr = (struct thr_info*)userdata;
 	CURL *curl;
 	bool ok = true;
 
@@ -935,7 +938,7 @@ static void *workio_thread(void *userdata)
 		struct workio_cmd *wc;
 
 		/* wait for workio_cmd sent to us, on our queue */
-		wc = tq_pop(mythr->q, NULL);
+		wc = (struct workio_cmd*)tq_pop(mythr->q, NULL);
 		if (!wc) {
 			ok = false;
 			break;
@@ -980,7 +983,7 @@ static bool get_work(struct thr_info *thr, struct work *work)
 	}
 
 	/* fill out work request message */
-	wc = calloc(1, sizeof(*wc));
+	wc = (struct workio_cmd*)calloc(1, sizeof(*wc));
 	if (!wc)
 		return false;
 
@@ -994,7 +997,7 @@ static bool get_work(struct thr_info *thr, struct work *work)
 	}
 
 	/* wait for response, a unit of work */
-	work_heap = tq_pop(thr->q, NULL);
+	work_heap = (struct work*)tq_pop(thr->q, NULL);
 	if (!work_heap)
 		return false;
 
@@ -1010,11 +1013,11 @@ static bool submit_work(struct thr_info *thr, const struct work *work_in)
 	struct workio_cmd *wc;
 	
 	/* fill out work request message */
-	wc = calloc(1, sizeof(*wc));
+	wc = (struct workio_cmd*)calloc(1, sizeof(*wc));
 	if (!wc)
 		return false;
 
-	wc->u.work = malloc(sizeof(*work_in));
+	wc->u.work = (work*)malloc(sizeof(*work_in));
 	if (!wc->u.work)
 		goto err_out;
 
@@ -1043,7 +1046,7 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 	free(work->job_id);
 	work->job_id = strdup(sctx->job.job_id);
 	work->xnonce2_len = sctx->xnonce2_size;
-	work->xnonce2 = realloc(work->xnonce2, sctx->xnonce2_size);
+	work->xnonce2 = (unsigned char*)realloc(work->xnonce2, sctx->xnonce2_size);
 	memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
 
 	/* Generate merkle root */
@@ -1092,7 +1095,7 @@ static void stratum_gen_work_m7(struct stratum_ctx *sctx, struct work *work)
 	free(work->job_id);
 	work->job_id = strdup(sctx->job.job_id);
 	work->xnonce2_len = sctx->xnonce2_size;
-	work->xnonce2 = realloc(work->xnonce2, sctx->xnonce2_size);
+	work->xnonce2 = (unsigned char*)realloc(work->xnonce2, sctx->xnonce2_size);
 	memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
 
 	/* Increment extranonce2 */
@@ -1127,11 +1130,13 @@ static void stratum_gen_work_m7(struct stratum_ctx *sctx, struct work *work)
 	}
 }
 
+extern "C" {
 void* cuda_init(int id);
+}
 
 static void *miner_thread(void *userdata)
 {
-	struct thr_info *mythr = userdata;
+	struct thr_info *mythr = (struct thr_info*)userdata;
 	int thr_id = mythr->id;
 	struct work work = {{0}};
 	uint32_t max_nonce;
@@ -1332,7 +1337,7 @@ static void restart_threads(void)
 
 static void *longpoll_thread(void *userdata)
 {
-	struct thr_info *mythr = userdata;
+	struct thr_info *mythr = (struct thr_info*)userdata;
 	CURL *curl = NULL;
 	char *copy_start, *hdr_path = NULL, *lp_url = NULL;
 	bool need_slash = false;
@@ -1344,7 +1349,7 @@ static void *longpoll_thread(void *userdata)
 	}
 
 start:
-	hdr_path = tq_pop(mythr->q, NULL);
+	hdr_path = (char*)tq_pop(mythr->q, NULL);
 	if (!hdr_path)
 		goto out;
 
@@ -1360,7 +1365,7 @@ start:
 		if (rpc_url[strlen(rpc_url) - 1] != '/')
 			need_slash = true;
 
-		lp_url = malloc(strlen(rpc_url) + strlen(copy_start) + 2);
+		lp_url = (char*)malloc(strlen(rpc_url) + strlen(copy_start) + 2);
 		if (!lp_url)
 			goto out;
 
@@ -1375,7 +1380,7 @@ start:
 		int err;
 
 		if (have_gbt) {
-			req = malloc(strlen(gbt_lp_req) + strlen(lp_id) + 1);
+			req = (char*)malloc(strlen(gbt_lp_req) + strlen(lp_id) + 1);
 			sprintf(req, gbt_lp_req, lp_id);
 		}
 		val = json_rpc_call(curl, lp_url, rpc_userpass,
@@ -1464,10 +1469,10 @@ out:
 
 static void *stratum_thread(void *userdata)
 {
-	struct thr_info *mythr = userdata;
+	struct thr_info *mythr = (struct thr_info*)userdata;
 	char *s;
 
-	stratum.url = tq_pop(mythr->q, NULL);
+	stratum.url = (char*)tq_pop(mythr->q, NULL);
 	if (!stratum.url)
 		goto out;
 	applog(LOG_INFO, "Starting Stratum on %s", stratum.url);
@@ -1677,7 +1682,7 @@ static void parse_arg(int key, char *arg, char *pname)
 				free(rpc_userpass);
 				rpc_userpass = strdup(ap);
 				free(rpc_user);
-				rpc_user = calloc(p - ap + 1, 1);
+				rpc_user = (char*)calloc(p - ap + 1, 1);
 				strncpy(rpc_user, ap, p - ap);
 				free(rpc_pass);
 				rpc_pass = strdup(++p);
@@ -1711,7 +1716,7 @@ static void parse_arg(int key, char *arg, char *pname)
 				show_usage_and_exit(1);
 			}
 			free(rpc_url);
-			rpc_url = malloc(strlen(hp) + 8);
+			rpc_url = (char*)malloc(strlen(hp) + 8);
 			sprintf(rpc_url, "http://%s", hp);
 		}
 		have_stratum = !opt_benchmark && !strncasecmp(rpc_url, "stratum", 7);
@@ -1727,7 +1732,7 @@ static void parse_arg(int key, char *arg, char *pname)
 		free(rpc_userpass);
 		rpc_userpass = strdup(arg);
 		free(rpc_user);
-		rpc_user = calloc(p - arg + 1, 1);
+		rpc_user = (char*)calloc(p - arg + 1, 1);
 		strncpy(rpc_user, arg, p - arg);
 		free(rpc_pass);
 		rpc_pass = strdup(++p);
@@ -1895,7 +1900,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!rpc_userpass) {
-		rpc_userpass = malloc(strlen(rpc_user) + strlen(rpc_pass) + 2);
+		rpc_userpass = (char*)malloc(strlen(rpc_user) + strlen(rpc_pass) + 2);
 		if (!rpc_userpass)
 			return 1;
 		sprintf(rpc_userpass, "%s:%s", rpc_user, rpc_pass);
@@ -1959,11 +1964,11 @@ int main(int argc, char *argv[])
 		openlog("cpuminer", LOG_PID, LOG_USER);
 #endif
 
-	work_restart = calloc(opt_n_threads, sizeof(*work_restart));
+	work_restart = (struct work_restart*)calloc(opt_n_threads, sizeof(*work_restart));
 	if (!work_restart)
 		return 1;
 
-	thr_info = calloc(opt_n_threads + 3, sizeof(*thr));
+	thr_info = (struct thr_info*)calloc(opt_n_threads + 3, sizeof(*thr));
 	if (!thr_info)
 		return 1;
 	
