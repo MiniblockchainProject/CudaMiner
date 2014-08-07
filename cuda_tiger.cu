@@ -599,25 +599,29 @@ static const sph_u64 T_4[256] = {
 	SPH_C64(0xC83223F1720AEF96), SPH_C64(0xC3A0396F7363A51F),
 };
 
-#define PASS(a, b, c, mul)   do { \
-		ROUND(a, b, c, X0, mul); \
-		ROUND(b, c, a, X1, mul); \
-		ROUND(c, a, b, X2, mul); \
-		ROUND(a, b, c, X3, mul); \
-		ROUND(b, c, a, X4, mul); \
-		ROUND(c, a, b, X5, mul); \
-		ROUND(a, b, c, X6, mul); \
-		ROUND(b, c, a, X7, mul); \
+#define PASS(sharedMem, a, b, c, mul)  	do { \
+		ROUND(sharedMem, a, b, c, X0, mul); \
+		ROUND(sharedMem, b, c, a, X1, mul); \
+		ROUND(sharedMem, c, a, b, X2, mul); \
+		ROUND(sharedMem, a, b, c, X3, mul); \
+		ROUND(sharedMem, b, c, a, X4, mul); \
+		ROUND(sharedMem, c, a, b, X5, mul); \
+		ROUND(sharedMem, a, b, c, X6, mul); \
+		ROUND(sharedMem, b, c, a, X7, mul); \
 	} while (0)
 
-#define ROUND(a, b, c, x, mul)   do { \
+#define ROUND(sharedMem, a, b, c, x, mul) 	do { \
 		c ^= x; \
-		a = SPH_T64(a - (T1[c & 0xFF] ^ T2[(c >> 16) & 0xFF] \
-			^ T3[(c >> 32) & 0xFF] ^ T4[(c >> 48) & 0xFF])); \
-		b = SPH_T64(b + (T4[(c >> 8) & 0xFF] ^ T3[(c >> 24) & 0xFF] \
-			^ T2[(c >> 40) & 0xFF] ^ T1[(c >> 56) & 0xFF])); \
+		a = SPH_T64(a - (sharedMem[c & 0xFF] ^ sharedMem[256 + ((c >> 16) & 0xFF)] \
+			^ sharedMem[512 + ((c >> 32) & 0xFF)] ^ sharedMem[768 + ((c >> 48) & 0xFF)])); \
+		b = SPH_T64(b + (sharedMem[768+((c >> 8) & 0xFF)] ^ sharedMem[512 + ((c >> 24) & 0xFF)] \
+			^ sharedMem[256 + ((c >> 40) & 0xFF)] ^ sharedMem[(c >> 56) & 0xFF])); \
 		b = mul(b); \
 	} while (0)
+
+#if 0
+
+#endif
 
 #define MUL5(x)   SPH_T64((x) * SPH_C64(5))
 #define MUL7(x)   SPH_T64((x) * SPH_C64(7))
@@ -642,7 +646,7 @@ static const sph_u64 T_4[256] = {
 		X7 = SPH_T64(X7 - (X6 ^ SPH_C64(0x0123456789ABCDEF))); \
 	} while (0)
 
-#define TIGER_ROUND_BODY(in, r)   do { \
+#define TIGER_ROUND_BODY(sharedMem, in, r)   do { \
 		sph_u64 A, B, C; \
 		sph_u64 X0, X1, X2, X3, X4, X5, X6, X7; \
  \
@@ -658,11 +662,11 @@ static const sph_u64 T_4[256] = {
 		X5 = (in(5)); \
 		X6 = (in(6)); \
 		X7 = (in(7)); \
-		PASS(A, B, C, MUL5); \
+		PASS(sharedMem, A, B, C, MUL5); \
 		KSCHED; \
-		PASS(C, A, B, MUL7); \
+		PASS(sharedMem, C, A, B, MUL7); \
 		KSCHED; \
-		PASS(B, C, A, MUL9); \
+		PASS(sharedMem, B, C, A, MUL9); \
  \
 		(r)[0] ^= A; \
 		(r)[1] = SPH_T64(B - (r)[1]); \
@@ -672,6 +676,17 @@ static const sph_u64 T_4[256] = {
 __global__ void tiger_gpu_hash_242(int threads, uint64_t startNounce, uint64_t *g_block, uint64_t *g_hash)
 {
     int thread = (blockDim.x * blockIdx.x + threadIdx.x);
+
+    __shared__ uint64_t sharedMemory[256*4];
+
+	if(threadIdx.x < 256)
+	{
+		sharedMemory[threadIdx.x]      = T1[threadIdx.x];
+		sharedMemory[threadIdx.x+256]  = T2[threadIdx.x];
+		sharedMemory[threadIdx.x+512]  = T3[threadIdx.x];
+		sharedMemory[threadIdx.x+768]  = T4[threadIdx.x];
+	}
+
     if (thread < threads)
     {
         uint64_t *inpHash = g_block;
@@ -700,7 +715,7 @@ uint64_t h8[8];
 
 #define IN(x) W[x]
 
-	TIGER_ROUND_BODY(IN,r);
+	TIGER_ROUND_BODY(sharedMemory, IN,r);
 
  	for (int i = 0; i < 8; i ++) {
 		W[i] = (inpHash[i+16]);
@@ -709,7 +724,7 @@ uint64_t h8[8];
 
 #define IN(x) W[x]
 
-	TIGER_ROUND_BODY(IN,r);
+	TIGER_ROUND_BODY(sharedMemory, IN,r);
 		
 
       #pragma unroll 3

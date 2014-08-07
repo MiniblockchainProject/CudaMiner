@@ -26,6 +26,8 @@ void usleep(int64_t waitTime);
 }
 typedef int64_t useconds_t;
 #define strncasecmp _strnicmp
+#include "pgetopt.h"
+#define getopt pgetopt
 #else
 #include <unistd.h>
 #include <sys/time.h>
