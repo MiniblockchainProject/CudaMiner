@@ -221,9 +221,9 @@ uint64_t h8[16];
  			W[i] = SPH_T64(SSG5_1(W[i - 2]) + W[i - 7] 
 				+ SSG5_0(W[i - 15]) + W[i - 16]); 
 
-#pragma unroll 10
-		for (int i = 0; i < 80; i += 8) {
 #pragma unroll 1
+		for (int i = 0; i < 80; i += 8) {
+#pragma unroll 8
 			for (int ord=0;ord<8;ord++) {SHA3_STEP2(K_512,ord,r,i+ord);}
 		}
 
@@ -250,9 +250,9 @@ uint64_t h8[16];
  			W[i] = SPH_T64(SSG5_1(W[i - 2]) + W[i - 7] 
 				+ SSG5_0(W[i - 15]) + W[i - 16]); 
 
-#pragma unroll 10
-		for (int i = 0; i < 80; i += 8) {
 #pragma unroll 1
+		for (int i = 0; i < 80; i += 8) {
+#pragma unroll 8
 			for (int ord=0;ord<8;ord++) {SHA3_STEP2(K_512,ord,r,i+ord);}
 		}
 
@@ -296,7 +296,7 @@ void sha512_cpu_init(int thr_id, int threads, ctx* pctx)
 __host__ void sha512_cpu_hash_242(int thr_id, int threads, uint64_t startNounce, uint32_t* dblock, uint64_t *d_hash)
 {
 
-	const int threadsperblock = 256; // Alignment mit mixtab Gr\F6sse. NICHT \C4NDERN
+	const int threadsperblock = 512; // Alignment mit mixtab Gr\F6sse. NICHT \C4NDERN
 
 	// berechne wie viele Thread Blocks wir brauchen
 	dim3 grid((threads + threadsperblock-1)/threadsperblock);

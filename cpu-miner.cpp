@@ -20,6 +20,12 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <time.h>
+extern "C"{
+int gettimeofday(struct timeval *tv, struct timezone *tz);
+void usleep(int64_t waitTime);
+}
+typedef int64_t useconds_t;
+#define strncasecmp _strnicmp
 #else
 #include <unistd.h>
 #include <sys/time.h>

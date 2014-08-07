@@ -5,7 +5,7 @@
 
 #ifdef _WIN32 || _WIN64
 #ifndef false
-typedef int bool;
+#define bool int
 #define false 0
 #define true 1
 #include <time.h>
