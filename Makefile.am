@@ -23,7 +23,8 @@ minerd_SOURCES	= elist.h miner.h compat.h \
 		  cuda_sha256.cu cuda_sha512.cu \
 		  cuda_whirlpool512.cu cuda_keccak512.cu \
 		  cuda_tiger.cu cuda_ripemd160.cu \
-		  cuda_haval256.cu
+		  cuda_haval256.cu \
+		  cuda_check.cu
 
 .cu.o:
 	nvcc -Xptxas "-abi=no -v" -arch=compute_35 --ptxas-options=-v   -O2 -o $@ -c $<

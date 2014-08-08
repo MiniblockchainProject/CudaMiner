@@ -95,8 +95,9 @@ extern void ripemd_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, u
 extern void keccak512_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
 extern void whirlpool_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
 extern void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash);
+extern void checkhash(int throughput, uint64_t *data, uint32_t *results, uint64_t target);
 
-extern void cpu_mul(int thr_id, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
+extern void cpu_mul(int order, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
 
 // Zeitsynchronisations-Routine von cudaminer mit CPU sleep
 typedef struct { double value[8]; } tsumarray;
@@ -275,6 +276,7 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 
 	size_t hashSz =  8 * sizeof(uint64_t) * throughput;
 	size_t prodSz = 38 * sizeof(uint64_t) * throughput;
+	size_t resultsSz =  (throughput/512)*2048;
 
 	//printf("Scanning block %ld %lX %s\n", hdr.nHeight, hdr.nNonce, target.GetHex().c_str());
 
@@ -287,26 +289,62 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	ripemd_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[6], pctx);
 
 	cpu_mul(0, throughput, 4, 8, pctx->d_hash[0], pctx->d_hash[1], pctx->d_prod[0]);
+	MyStreamSynchronize(0,8,pctx->thr_id);
+
 	cpu_mul(0, throughput, 8, 12, pctx->d_hash[2], pctx->d_prod[0], pctx->d_prod[1]);
+	MyStreamSynchronize(0,9,pctx->thr_id);
+
 	cpu_mul(0, throughput, 8, 20, pctx->d_hash[3], pctx->d_prod[1], pctx->d_prod[0]);
+	MyStreamSynchronize(0,10,pctx->thr_id);
+
 	cpu_mul(0, throughput, 4, 28, pctx->d_hash[4], pctx->d_prod[0], pctx->d_prod[1]);
+	MyStreamSynchronize(0,11,pctx->thr_id);
+
 	cpu_mul(0, throughput, 3, 32, pctx->d_hash[5], pctx->d_prod[1], pctx->d_prod[0]);
+	MyStreamSynchronize(0,12,pctx->thr_id);
+
 	cpu_mul(0, throughput, 3, 35, pctx->d_hash[6], pctx->d_prod[0], pctx->d_prod[1]);
+	MyStreamSynchronize(0,13,pctx->thr_id);
 
 	sha256_fullhash(throughput,pctx->d_prod[1],pctx->d_hash[7]);
 
 	uint64_t startNonce = hdr.nNonce;
 
 	//Check for any winners
+	uint64_t targetword = ((uint64_t)(((uint32_t*)&target)[7]) << 32) | ((uint32_t*)&target)[6];
 
-	cudaMemcpyAsync( pctx->hash[7], pctx->d_hash[7], hashSz/2, cudaMemcpyDeviceToHost, 0 ); 
+	//printf("%16.16lX\n", targetword);
 
-	MyStreamSynchronize(0,8,pctx->thr_id);
-	
+	checkhash(throughput,pctx->d_hash[7],pctx->d_results, targetword);
+
+//	cudaMemcpyAsync( pctx->hash[7], pctx->d_hash[7], hashSz/2, cudaMemcpyDeviceToHost, 0 );
+	cudaMemcpyAsync( pctx->results, pctx->d_results, resultsSz, cudaMemcpyDeviceToHost, 0 ); 
+
+	MyStreamSynchronize(0,15,pctx->thr_id);
+
+	for(int i=0; i < throughput; i++){
+		//First locate block
+		int block = i / 512; 
+		//Start offset is block * 4096
+		int sofst = block * 4096/32;
+		int thread = i % 512;
+		int word = thread / 32;
+		
+		uint32_t set = pctx->results[sofst + word];
+		uint32_t r = (set >> (thread%32)) & 1;
+		if(r){
+			printf("Checkhash found a winner, nonce %ld\n", startNonce + i* 0x100000000ULL); 
+			hdr.nNonce = startNonce+i* 0x100000000ULL;
+			return hdr.nNonce;
+		}
+	}
+
+
+	return 0;	
 	for(int i=0; i < throughput; i++){
 		//Only really need to check high word
 		uint64_t highword = pctx->hash[7][3*throughput+i];
-		if((highword >> 32) < ((uint32_t*)&target)[7] || ((highword >> 32) == ((uint32_t*)&target)[7] && ((uint32_t)highword) <= ((uint32_t*)&target)[6])){
+		if(highword < targetword){
 			printf("Found a winner, %lX nonce %ld\n", highword, startNonce + i* 0x100000000ULL); 
 			hdr.nNonce = startNonce+i* 0x100000000ULL;
 #ifdef DEBUG_HASH
@@ -450,6 +488,12 @@ void* cuda_init(int id){
 		gpuErrchk(cudaMalloc(&pctx->d_prod[i], prodSz));
 		pctx->prod[i] = (uint64_t*)malloc(prodSz);
 	}
+
+	//Results are spaced out so no conflicts on global memory. cache line is 256bytes
+	size_t resultsSz =  (throughput/512)*2048;
+
+	pctx->results = (uint32_t*)malloc(resultsSz);
+	gpuErrchk(cudaMalloc(&pctx->d_results, resultsSz));
 
 	return pctx;
 }

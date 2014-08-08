@@ -24,6 +24,8 @@ struct ctx {
 	int thr_id;
 
 	uint64_t* keccak_dstate;
+	uint32_t* results;
+	uint32_t* d_results;
 };
 
 #pragma pack(push,1)
