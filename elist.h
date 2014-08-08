@@ -1,6 +1,10 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
+#ifdef _WIN32 || _WIN64
+#define inline
+#endif
+
 /*
  * Simple doubly linked list implementation.
  *
@@ -30,14 +34,14 @@ struct list_head {
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-static inline void __list_add(struct list_head *new,
+static inline void __list_add(struct list_head *pnew,
 			      struct list_head *prev,
 			      struct list_head *next)
 {
-	next->prev = new;
-	new->next = next;
-	new->prev = prev;
-	prev->next = new;
+	next->prev = pnew;
+	pnew->next = next;
+	pnew->prev = prev;
+	prev->next = pnew;
 }
 
 /**
@@ -48,9 +52,9 @@ static inline void __list_add(struct list_head *new,
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
-static inline void list_add(struct list_head *new, struct list_head *head)
+static inline void list_add(struct list_head *pnew, struct list_head *head)
 {
-	__list_add(new, head, head->next);
+	__list_add(pnew, head, head->next);
 }
 
 /**
@@ -61,9 +65,9 @@ static inline void list_add(struct list_head *new, struct list_head *head)
  * Insert a new entry before the specified head.
  * This is useful for implementing queues.
  */
-static inline void list_add_tail(struct list_head *new, struct list_head *head)
+static inline void list_add_tail(struct list_head *pnew, struct list_head *head)
 {
-	__list_add(new, head->prev, head);
+	__list_add(pnew, head->prev, head);
 }
 
 /*
@@ -87,8 +91,8 @@ static inline void __list_del(struct list_head *prev, struct list_head *next)
 static inline void list_del(struct list_head *entry)
 {
 	__list_del(entry->prev, entry->next);
-	entry->next = (void *) 0;
-	entry->prev = (void *) 0;
+	entry->next =  0;
+	entry->prev =  0;
 }
 
 /**

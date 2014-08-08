@@ -28,6 +28,8 @@ typedef int64_t useconds_t;
 #define strncasecmp _strnicmp
 #include "pgetopt.h"
 #define getopt pgetopt
+#define optarg poptarg
+#define optind poptind
 #else
 #include <unistd.h>
 #include <sys/time.h>
@@ -215,7 +217,7 @@ Options:\n\
   -h, --help            display this help text and exit\n\
 ";
 
-static char const short_options[] =
+static char short_options[] =
 #ifndef WIN
 	"B"
 #endif
@@ -1161,15 +1163,6 @@ static void *miner_thread(void *userdata)
 	if (!opt_benchmark) {
 		setpriority(PRIO_PROCESS, 0, 19);
 		drop_policy();
-	}
-
-	/* Cpu affinity only makes sense if the number of threads is a multiple
-	 * of the number of CPUs */
-	if (num_processors > 1 && opt_n_threads % num_processors == 0) {
-		if (!opt_quiet)
-			applog(LOG_INFO, "Binding thread %d to cpu %d",
-			       thr_id, thr_id % num_processors);
-		affine_to_cpu(thr_id, thr_id % num_processors);
 	}
 	
 	if (opt_algo == ALGO_SCRYPT) {

@@ -54,7 +54,6 @@ int scanhash_m7hash(int thr_id, void* cuda_ctx, uint32_t *pdata, const uint32_t 
     uint32_t n = pdata[29] - 1;
     const uint32_t first_nonce = pdata[29];
     char data_str[245], hash_str[65], target_str[65];
-    uint8_t *bdata = 0;
     int rc = 0;
 
     memcpy(data, pdata, 122);
@@ -70,19 +69,17 @@ int scanhash_m7hash(int thr_id, void* cuda_ctx, uint32_t *pdata, const uint32_t 
         if (nonce) {
 
             pdata[29] = nonce >> 32;
+
+	    *hashes_done = n - first_nonce + 1;
 	    n=pdata[29];
 
-            goto out;
+            return 1;
         }
     } while (n < max_nonce && !work_restart[thr_id].restart);
 
     pdata[29] = n;
-
-out:
-
     *hashes_done = n - first_nonce + 1;
-    free(bdata);
-    return 1;
+    return 0;
 }
 
 
