@@ -467,7 +467,7 @@ __host__ void sha256_cpu_hash_242(int thr_id, int threads, uint64_t startNounce,
 
 
 //	cudaStreamSynchronize(0);
-	MyStreamSynchronize(NULL, 1, thr_id);
+	MyStreamSynchronize(NULL, 8, thr_id);
 }
 
 extern "C" {
