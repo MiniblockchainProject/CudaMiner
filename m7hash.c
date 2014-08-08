@@ -46,16 +46,16 @@ uint64_t cuda_scanhash(void* ctx, void* data, void* target);
 int scanhash_m7hash(int thr_id, void* cuda_ctx, uint32_t *pdata, const uint32_t *ptarget,
     uint64_t max_nonce, unsigned long *hashes_done)
 {
-    uint32_t data[32] __attribute__((aligned(128)));
+    uint32_t data[32];
     uint32_t *data_p64 = data + (M7_MIDSTATE_LEN / sizeof(data[0]));
-    uint32_t hash[8] __attribute__((aligned(32)));
-    uint8_t bhash[7][64] __attribute__((aligned(32)));
-    uint32_t hashtest[8] __attribute__((aligned(32)));
+    uint32_t hash[8];
+    uint8_t bhash[7][64];
+    uint32_t hashtest[8];
     uint32_t n = pdata[29] - 1;
     const uint32_t first_nonce = pdata[29];
     char data_str[245], hash_str[65], target_str[65];
     int rc = 0;
-
+    uint64_t nonce;
     memcpy(data, pdata, 122);
 
     do {	
@@ -63,7 +63,7 @@ int scanhash_m7hash(int thr_id, void* cuda_ctx, uint32_t *pdata, const uint32_t 
         data[29] = n;
 
 
-	uint64_t nonce = cuda_scanhash(cuda_ctx,data,ptarget);
+	 cuda_scanhash(cuda_ctx,data,ptarget);
 
 
         if (nonce) {

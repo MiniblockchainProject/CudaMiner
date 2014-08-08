@@ -23,10 +23,10 @@
 extern "C"{
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 void usleep(int64_t waitTime);
+#include "pgetopt.h"
 }
 typedef int64_t useconds_t;
 #define strncasecmp _strnicmp
-#include "pgetopt.h"
 #define getopt pgetopt
 #define optarg poptarg
 #define optind poptind
@@ -1164,15 +1164,6 @@ static void *miner_thread(void *userdata)
 		setpriority(PRIO_PROCESS, 0, 19);
 		drop_policy();
 	}
-	
-	if (opt_algo == ALGO_SCRYPT) {
-		scratchbuf = scrypt_buffer_alloc(opt_scrypt_n);
-		if (!scratchbuf) {
-			applog(LOG_ERR, "scrypt buffer allocation failed");
-			pthread_mutex_lock(&applog_lock);
-			exit(1);
-		}
-	}
 
 	while (1) {
 		unsigned long hashes_done;
@@ -1272,15 +1263,6 @@ static void *miner_thread(void *userdata)
 
 		/* scan nonces for a proof-of-work hash */
 		switch (opt_algo) {
-		case ALGO_SCRYPT:
-			rc = scanhash_scrypt(thr_id, work.data, scratchbuf, work.target,
-			                     max_nonce, &hashes_done, opt_scrypt_n);
-			break;
-
-		case ALGO_SHA256D:
-			rc = scanhash_sha256d(thr_id, work.data, work.target,
-			                      max_nonce, &hashes_done);
-			break;
 
 		case ALGO_M7:
 			rc = scanhash_m7hash(thr_id, cuda_ctx, work.data, work.target,

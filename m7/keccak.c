@@ -33,7 +33,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdint.h>
+#include <mstdint.h>
 
 #include "sph_keccak.h"
 
@@ -181,7 +181,7 @@ static const sph_u64 RC[] = {
 #define INPUT_BUF(size)   do { \
 		size_t j; \
 		for (j = 0; j < (size); j += 8) { \
-			kc->u.wide[j >> 3] ^= sph_dec64le_aligned(buf + j); \
+			kc->u.wide[j >> 3] ^= sph_dec64le_aligned((char*)buf + j); \
 		} \
 	} while (0)
 
@@ -652,8 +652,8 @@ static const struct {
 
 #define READ64(d, off)   do { \
 		sph_u32 tl, th; \
-		tl = sph_dec32le_aligned(buf + (off)); \
-		th = sph_dec32le_aligned(buf + (off) + 4); \
+		tl = sph_dec32le_aligned((char*)buf + (off)); \
+		th = sph_dec32le_aligned((char*)buf + (off) + 4); \
 		INTERLEAVE(tl, th); \
 		d ## l ^= tl; \
 		d ## h ^= th; \
@@ -1600,27 +1600,27 @@ keccak_core(sph_keccak_context *kc, const void *data, size_t len, size_t lim)
 	kc->ptr = ptr;
 }
 
-void keccak_one(const void *buf, uint64_t state[])
+void keccak_one(const void *bufv, uint64_t state[])
 {
 	sph_keccak_context fkc;
 	sph_keccak_context *kc = &fkc;
-
-	keccak_init(kc,512);
-	
+	int i;
+	char* buf = (char*)bufv;
 	DECL_STATE
+	keccak_init(kc,512);
+
 	INPUT_BUF(72);
 	KECCAK_F_1600;
 	WRITE_STATE(kc);
 
-	/* Finalize the "lane complement" */ \
-		kc->u.wide[ 1] = ~kc->u.wide[ 1]; \
-		kc->u.wide[ 2] = ~kc->u.wide[ 2]; \
-		kc->u.wide[ 8] = ~kc->u.wide[ 8]; \
-		kc->u.wide[12] = ~kc->u.wide[12]; \
-		kc->u.wide[17] = ~kc->u.wide[17]; \
-		kc->u.wide[20] = ~kc->u.wide[20]; \
+	/* Finalize the "lane complement" */ 
+		kc->u.wide[ 1] = ~kc->u.wide[ 1]; 
+		kc->u.wide[ 2] = ~kc->u.wide[ 2]; 
+		kc->u.wide[ 8] = ~kc->u.wide[ 8]; 
+		kc->u.wide[12] = ~kc->u.wide[12]; 
+		kc->u.wide[17] = ~kc->u.wide[17]; 
+		kc->u.wide[20] = ~kc->u.wide[20]; 
 
-	int i;
 	for(i=0; i < 25; i++){
 		state[i] = kc->u.wide[i];
 	}
