@@ -63,7 +63,7 @@ int scanhash_m7hash(int thr_id, void* cuda_ctx, uint32_t *pdata, const uint32_t 
         data[29] = n;
 
 
-	 cuda_scanhash(cuda_ctx,data,ptarget);
+	nonce = cuda_scanhash(cuda_ctx,data,ptarget);
 
 
         if (nonce) {
