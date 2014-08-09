@@ -39,6 +39,8 @@
 #undef _GLIBCXX_ATOMIC_BUILTINS
 #undef _GLIBCXX_USE_INT128
 
+//#define PROF
+
 #include <cuda.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -98,6 +100,8 @@ extern void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash);
 extern void checkhash(int throughput, uint64_t *data, uint32_t *results, uint64_t target);
 
 extern void cpu_mul(int order, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
+extern void cpu_mulT4(int order, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
+extern void mul_init();
 
 // Zeitsynchronisations-Routine von cudaminer mit CPU sleep
 typedef struct { double value[8]; } tsumarray;
@@ -288,22 +292,22 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	tiger_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[5], pctx);
 	ripemd_scanhash(throughput,hdr.nNonce,&hdr,pctx->d_hash[6], pctx);
 
-	cpu_mul(0, throughput, 4, 8, pctx->d_hash[0], pctx->d_hash[1], pctx->d_prod[0]);
-	MyStreamSynchronize(0,8,pctx->thr_id);
-
-	cpu_mul(0, throughput, 8, 12, pctx->d_hash[2], pctx->d_prod[0], pctx->d_prod[1]);
+	cpu_mulT4(0, throughput, 8, 8, pctx->d_hash[1], pctx->d_hash[2], pctx->d_prod[0]); //64
 	MyStreamSynchronize(0,9,pctx->thr_id);
 
-	cpu_mul(0, throughput, 8, 20, pctx->d_hash[3], pctx->d_prod[1], pctx->d_prod[0]);
+	cpu_mulT4(0, throughput,8, 16, pctx->d_hash[3], pctx->d_prod[0], pctx->d_prod[1]); //128
+	MyStreamSynchronize(0,9,pctx->thr_id);
+
+	cpu_mulT4(0, throughput, 4, 24, pctx->d_hash[0], pctx->d_prod[1], pctx->d_prod[0]); //96
 	MyStreamSynchronize(0,10,pctx->thr_id);
 
-	cpu_mul(0, throughput, 4, 28, pctx->d_hash[4], pctx->d_prod[0], pctx->d_prod[1]);
+	cpu_mulT4(0, throughput, 4, 28, pctx->d_hash[4], pctx->d_prod[0], pctx->d_prod[1]);  //112
 	MyStreamSynchronize(0,11,pctx->thr_id);
 
-	cpu_mul(0, throughput, 3, 32, pctx->d_hash[5], pctx->d_prod[1], pctx->d_prod[0]);
+	cpu_mul(0, throughput, 3, 32, pctx->d_hash[5], pctx->d_prod[1], pctx->d_prod[0]); //96
 	MyStreamSynchronize(0,12,pctx->thr_id);
 
-	cpu_mul(0, throughput, 3, 35, pctx->d_hash[6], pctx->d_prod[0], pctx->d_prod[1]);
+	cpu_mul(0, throughput, 3, 35, pctx->d_hash[6], pctx->d_prod[0], pctx->d_prod[1]); //105
 	MyStreamSynchronize(0,13,pctx->thr_id);
 
 	sha256_fullhash(throughput,pctx->d_prod[1],pctx->d_hash[7]);
@@ -335,6 +339,10 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 		if(r){
 			printf("Checkhash found a winner, nonce %ld\n", startNonce + i* 0x100000000ULL); 
 			hdr.nNonce = startNonce+i* 0x100000000ULL;
+#ifdef PROF
+cudaDeviceReset();
+exit(0);
+#endif
 			return hdr.nNonce;
 		}
 	}
@@ -476,6 +484,7 @@ void* cuda_init(int id){
 	tiger_cpu_init(0,throughput, pctx);
 	ripemd_cpu_init(0,throughput, pctx);
 	keccak512_cpu_init(0,throughput,pctx);
+	mul_init();
 
 	size_t hashSz =  8 * sizeof(uint64_t) * throughput;
 	size_t prodSz = 38 * sizeof(uint64_t) * throughput;
