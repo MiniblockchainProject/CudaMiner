@@ -1285,7 +1285,7 @@ return xor1(sharedMemory[idx0],xor1(sharedMemory[idx1],xor1(sharedMemory[idx2],x
 
 #pragma unroll 8
 	for(int i=0; i < 8; i++){
-		n[i] ^= h[i];
+		n[i] = xor1(n[i],h[i]);
 	}
 
 #pragma unroll 1

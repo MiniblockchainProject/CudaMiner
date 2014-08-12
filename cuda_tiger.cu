@@ -687,6 +687,8 @@ __global__ void tiger_gpu_hash_242(int threads, uint64_t startNounce, uint64_t *
 		sharedMemory[threadIdx.x+768]  = T4[threadIdx.x];
 	}
 
+    __syncthreads();
+
     if (thread < threads)
     {
         uint64_t *inpHash = g_block;
@@ -796,10 +798,18 @@ void tiger_scanhash(int throughput, uint64_t startNonce, CBlockHeader *hdr, uint
 
 	sph_tiger_comp((sph_u64*)block, hash);
 
+
 	for(int i=0; i < 3; i++){
 		((uint64_t*)block)[i] = hash[i];
 	}
 
+#if 0
+	printf("Tiger: ");
+	for(int i=0; i < 3; i++){
+		printf("%16.16llX", hash[i]);
+	}	
+	printf("\n");
+#endif
 	gpuErrchk(cudaMemcpyAsync( pctx->tiger_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 
 	tiger_cpu_hash_242(pctx->thr_id,throughput,startNonce,pctx->tiger_dblock,d_hash);

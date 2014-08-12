@@ -278,6 +278,8 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	memcpy(&hdr,data,sizeof(hdr));
 	memcpy(&target,t,32);
 
+//	printf("Size: %lld\n", sizeof(hdr));
+
 	size_t hashSz =  8 * sizeof(uint64_t) * throughput;
 	size_t prodSz = 38 * sizeof(uint64_t) * throughput;
 	size_t resultsSz =  (throughput/512)*2048;
@@ -325,6 +327,21 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	cudaMemcpyAsync( pctx->results, pctx->d_results, resultsSz, cudaMemcpyDeviceToHost, 0 ); 
 
 	MyStreamSynchronize(0,15,pctx->thr_id);
+
+#if 0
+
+	for(int i=0; i < 8; i++){
+		cudaMemcpy( pctx->hash[i], pctx->d_hash[i], hashSz, cudaMemcpyDeviceToHost ); 
+
+		for(int k=0; k < 2; k++){
+			for(int j=0; j < 8; j++)
+				printf("%16.16llx",pctx->hash[i][(7-j)*throughput+k]);
+			printf("\n");
+		}
+	}
+	exit(0);
+
+#endif
 
 	for(int i=0; i < throughput; i++){
 		//First locate block

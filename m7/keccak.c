@@ -1521,7 +1521,7 @@ static const struct {
 #endif
 
 static void
-keccak_init(sph_keccak_context *kc, unsigned out_size)
+c(sph_keccak_context *kc, unsigned out_size)
 {
 	int i;
 
@@ -1608,11 +1608,13 @@ void keccak_one(const void *bufv, uint64_t state[])
 	char* buf = (char*)bufv;
 	DECL_STATE
 	keccak_init(kc,512);
-
+	READ_STATE(kc);
 	INPUT_BUF(72);
 	KECCAK_F_1600;
 	WRITE_STATE(kc);
 
+
+#if SPH_KECCAK_64
 	/* Finalize the "lane complement" */ 
 		kc->u.wide[ 1] = ~kc->u.wide[ 1]; 
 		kc->u.wide[ 2] = ~kc->u.wide[ 2]; 
@@ -1620,6 +1622,22 @@ void keccak_one(const void *bufv, uint64_t state[])
 		kc->u.wide[12] = ~kc->u.wide[12]; 
 		kc->u.wide[17] = ~kc->u.wide[17]; 
 		kc->u.wide[20] = ~kc->u.wide[20]; 
+
+#else
+
+	kc->u.narrow[ 2] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[ 3] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[ 4] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[ 5] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[16] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[17] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[24] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[25] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[34] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[35] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[40] = SPH_C32(0xFFFFFFFF);
+	kc->u.narrow[41] = SPH_C32(0xFFFFFFFF);
+#endif
 
 	for(i=0; i < 25; i++){
 		state[i] = kc->u.wide[i];

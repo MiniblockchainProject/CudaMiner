@@ -214,10 +214,23 @@ void keccak512_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr,
 	memcpy(block,hdr,sizeof(*hdr));
 
 	block[122] = 0x1;
-	((uint64_t*)block)[144/8 - 1] = 0x8000000000000000UL;
+	((uint64_t*)block)[144/8 - 1] = 0x8000000000000000ULL;
 
 	keccak_one(block,state);
 
+#if 0
+	printf("KeccakBlock: ");
+	for(int i=0; i < (144+7)/8; i++){
+		printf("%16.16llX", ((uint64_t*)block)[i]);
+	}
+	printf("\n");
+
+	printf("Keccak: ");
+	for(int i=0; i < 25; i++){
+		printf("%16.16llX", state[i]);
+	}
+	printf("\n");
+#endif
 	gpuErrchk(cudaMemcpyAsync( pctx->keccak_dblock, block, sizeof(block), cudaMemcpyHostToDevice, 0 )); 
 	gpuErrchk(cudaMemcpyAsync( pctx->keccak_dstate, state, sizeof(state), cudaMemcpyHostToDevice, 0 )); 
 
