@@ -1521,7 +1521,7 @@ static const struct {
 #endif
 
 static void
-c(sph_keccak_context *kc, unsigned out_size)
+keccak_init(sph_keccak_context *kc, unsigned out_size)
 {
 	int i;
 
