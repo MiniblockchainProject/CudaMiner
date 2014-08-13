@@ -96,7 +96,7 @@ extern void tiger_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, ui
 extern void ripemd_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
 extern void keccak512_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
 extern void whirlpool_scanhash(int throughput, uint64_t nonce, CBlockHeader *hdr, uint64_t *hash, ctx* pctx);
-extern void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash);
+extern void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash, ctx* pctx);
 extern void checkhash(int throughput, uint64_t *data, uint32_t *results, uint64_t target);
 
 extern void cpu_mul(int order, int threads, uint32_t alegs, uint32_t blegs, uint64_t *g_a, uint64_t *g_b, uint64_t *g_p);
@@ -312,7 +312,7 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 	cpu_mul(0, throughput, 3, 35, pctx->d_hash[6], pctx->d_prod[0], pctx->d_prod[1]); //105
 	MyStreamSynchronize(0,13,pctx->thr_id);
 
-	sha256_fullhash(throughput,pctx->d_prod[1],pctx->d_hash[7]);
+	sha256_fullhash(throughput,pctx->d_prod[1],pctx->d_hash[7],pctx);
 
 	uint64_t startNonce = hdr.nNonce;
 
@@ -354,7 +354,7 @@ uint64_t cuda_scanhash(void *vctx, void* data, void* t){
 		uint32_t set = pctx->results[sofst + word];
 		uint32_t r = (set >> (thread%32)) & 1;
 		if(r){
-			printf("Checkhash found a winner, nonce %ld\n", startNonce + i* 0x100000000ULL); 
+			printf("Checkhash found a winner, nonce %lld\n", startNonce + i* 0x100000000ULL); 
 			hdr.nNonce = startNonce+i* 0x100000000ULL;
 #ifdef PROF
 cudaDeviceReset();

@@ -500,8 +500,8 @@ void sha256_scanhash(int throughput, uint64_t startNounce, CBlockHeader *hdr, ui
 	sha256_cpu_hash_242(pctx->thr_id, throughput,startNounce,pctx->sha256_dblock,d_hash);
 }
 
-void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash){
-	sha256_cpu_fullhash(0,throughput,data,hash);
+void sha256_fullhash(int throughput, uint64_t *data, uint64_t *hash, ctx* pctx){
+	sha256_cpu_fullhash(pctx->thr_id,throughput,data,hash);
 }
 
 
